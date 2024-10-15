@@ -6,7 +6,7 @@
 
 <div>
 	<Header />
-	<App />
+	<Blog />
 </div>
 
 <style>
