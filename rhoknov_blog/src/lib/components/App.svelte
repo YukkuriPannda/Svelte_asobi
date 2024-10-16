@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Canvas } from '@threlte/core';
 	import RhoknovLogo from './RhoknovLogo.svelte';
-	import {clickToCopy} from "./clickToCopy"
-	const copy_email=() =>{
-		navigator.clipboard.writeText("Rhoknov@gmail.com")
-		alert("copied Rhoknov@gmail.com!!")
-	}
+	import { clickToCopy } from './clickToCopy';
+	const copy_email = () => {
+		navigator.clipboard.writeText('Rhoknov@gmail.com');
+		alert('copied Rhoknov@gmail.com!!');
+	};
 </script>
 
 <div class="Body">
@@ -25,7 +25,7 @@
 				<img src="/github.svg" />
 			</div>
 			<div class="email">
-				<button on:click={copy_email}/>
+				<button on:click={copy_email} />
 				<img src="/email.svg" />
 			</div>
 		</div>
@@ -84,7 +84,7 @@
 		height: 100%;
 		width: 100%;
 	}
-	.icons div button{
+	.icons div button {
 		position: absolute;
 		top: 0;
 		left: 0;
