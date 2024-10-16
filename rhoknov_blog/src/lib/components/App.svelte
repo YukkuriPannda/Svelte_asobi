@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { Canvas } from '@threlte/core';
 	import RhoknovLogo from './RhoknovLogo.svelte';
+	import {clickToCopy} from "./clickToCopy"
+	const copy_email=() =>{
+		navigator.clipboard.writeText("Rhoknov@gmail.com")
+		alert("copied Rhoknov@gmail.com!!")
+	}
 </script>
 
 <div class="Body">
@@ -20,7 +25,7 @@
 				<img src="/github.svg" />
 			</div>
 			<div class="email">
-				<a href="https://www.instagram.com/funahaya1991/" />
+				<button on:click={copy_email}/>
 				<img src="/email.svg" />
 			</div>
 		</div>
@@ -47,7 +52,7 @@
 	}
 	div.Body:before {
 		content: '';
-		background-image: url('/IMG_2280.jpg');
+		background-image: url('/IMG_2280_Original.jpeg');
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -73,6 +78,13 @@
 		height: 30px;
 	}
 	.icons div a {
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 100%;
+		width: 100%;
+	}
+	.icons div button{
 		position: absolute;
 		top: 0;
 		left: 0;
