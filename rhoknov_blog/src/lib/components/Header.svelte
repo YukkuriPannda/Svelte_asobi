@@ -11,7 +11,7 @@
 		</div>
 
 		<div class="PhotoButton">
-			<a href="/photo"> phhoto </a>
+			<a href="/photo"> photo </a>
 		</div>
 	</div>
 	<hr />
