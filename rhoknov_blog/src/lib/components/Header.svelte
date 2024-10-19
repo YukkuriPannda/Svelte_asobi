@@ -23,7 +23,6 @@
 
 		</div>
 	</div>
-	<hr />
 </div>
 
 <style>
@@ -33,18 +32,23 @@
 		vertical-align: middle;
 	}
 	.HomeButton{
-		margin: 20px 20px;
+		margin: 30px 20px;
 		width: 30px;
 		height: 30px;
 	}
+	.Header{
+		background-color: #1b1b1b;
+		z-index: 100;
+	}
 	.Header .BasicButtons {
+
 		display: flex;
 		align-items: center;
 		justify-content:center;
 	}
 	.Button{
 		height:30px;
-		margin: 10px 10px;
+		margin: 20px 15px;
 		text-align: center;
 		padding: 0px;
 	}
@@ -54,5 +58,4 @@
 		align-items: center;
 		height: 100%;	
 	}
-	
 </style>
