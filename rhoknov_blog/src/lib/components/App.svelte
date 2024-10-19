@@ -35,6 +35,16 @@
 			
 		</div>
 	</div>
+	<div class="Awards">
+		<div class="YCC">
+			<img src="/Trophy.svg"/>
+			<p>Unity YCC Bronze Award</p>
+		</div>
+		<div class="KLOUD">
+			<img src="/Trophy.svg"/>
+			<p>KLOUD Hackathon#3 Excellence Award</p>
+		</div>
+	</div>
 </div>
 
 <style>
@@ -45,11 +55,6 @@
 		z-index: 0;
 	}
 	.RhoknovLogo {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		left: 0;
-		right: 0;
 		vertical-align: middle;
 		align-items: center;
 		margin: auto;
@@ -73,18 +78,7 @@
 		font-family: Arial, Helvetica, sans-serif;
 
 	}
-	div.Body:before {
-		content: '';
-		background-image: url('/IMG_2280_Original.jpeg');
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		filter: blur(3px);
-		z-index: -1;
-		background-size: cover;
-	}
+	
 	.icons {
 		display: flex;
 		margin:30px auto;
@@ -99,5 +93,20 @@
 	}
 	.icons div img {
 		height: 30px;
+	}
+	.YCC,.KLOUD{
+		display: flex;
+		height: 20px;
+		justify-content: center;
+		margin: 30px;
+	}
+	.YCC *,.KLOUD *{
+		margin: 0 20px;
+	}
+	.YCC img,.KLOUD img{
+		filter: invert(55%) sepia(86%) saturate(310%) hue-rotate(358deg) brightness(93%) contrast(88%);
+	}
+	.KLOUD img{
+		filter: invert(84%) sepia(0%) saturate(3046%) hue-rotate(49deg) brightness(97%) contrast(85%);
 	}
 </style>
