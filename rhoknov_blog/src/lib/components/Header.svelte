@@ -3,27 +3,56 @@
 
 <div class="Header">
 	<div class="Buttons">
-		<div class="BlogButton">
-			<a href="/blog"> blog </a>
-		</div>
-		<div class="WorksButton">
-			<a href="/works"> works </a>
-		</div>
+		<div class="HomeButton Button">
+			<a href="/">
+				<img src="RhoknovLogo.svg"/>
+			</a>
 
-		<div class="PhotoButton">
-			<a href="/photo"> phhoto </a>
+		</div>
+		<div class="BasicButtons">
+			<div class="BlogButton Button">
+				<a href="/blog"> blog </a>
+			</div>
+			<div class="WorksButton Button">
+				<a href="/works"> works </a>
+			</div>
+	
+			<div class="PhotoButton Button">
+				<a href="/photo"> photo </a>
+			</div>
+
 		</div>
 	</div>
 	<hr />
 </div>
 
 <style>
-	.Header .Buttons {
+	.Buttons{
 		display: flex;
+		align-items:center;
+		vertical-align: middle;
+	}
+	.HomeButton{
+		margin: 20px 20px;
+		width: 30px;
+		height: 30px;
+	}
+	.Header .BasicButtons {
+		display: flex;
+		align-items: center;
+		justify-content:center;
+	}
+	.Button{
+		height:30px;
+		margin: 10px 10px;
+		text-align: center;
+		padding: 0px;
+	}
+	.Button a{
+		display: flex; 
 		justify-content: center;
-		padding: 10px;
+		align-items: center;
+		height: 100%;	
 	}
-	.Header .Buttons div {
-		margin: 10px 20px;
-	}
+	
 </style>
