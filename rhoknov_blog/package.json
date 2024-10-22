@@ -34,7 +34,9 @@
   "dependencies": {
     "@threlte/core": "^7.3.1",
     "@threlte/extras": "^8.11.5",
+    "contentlayer": "^0.3.4",
     "scss": "^0.2.4",
+    "svelte-markdown": "^0.4.1",
     "three": "^0.159.0"
   }
 }
