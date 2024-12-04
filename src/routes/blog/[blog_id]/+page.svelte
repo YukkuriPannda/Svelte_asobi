@@ -2,22 +2,18 @@
 	import App from '$lib/components/App.svelte';
 	import Blog from '$lib/components/Blog.svelte';
 	import Header from '$lib/components/Header.svelte';
+	export let data;
+	console.log(data);
 </script>
 
 <div>
 	<Header />
-	<Blog />
+
+	{#await data.article}
+		<p>waiting...</p>
+	{:then article}
+		<Blog blog_data={article} />
+	{:catch error}
+		<p>{error}</p>
+	{/await}
 </div>
-
-<style>
-	:global(body) {
-		margin: 0;
-	}
-
-	div {
-		width: 100vw;
-		height: 100vh;
-		background: #1b1b1b;
-		color: white;
-	}
-</style>
