@@ -1,6 +1,6 @@
 <script lang="ts">
 	import App from '$lib/components/App.svelte';
-	import Blog from '$lib/components/Blog.svelte';
+	import Blog from '$lib/components/BlogDashboard.svelte';
 	import Header from '$lib/components/Header.svelte';
 	export const pererender = true;
 </script>
@@ -8,11 +8,10 @@
 <div>
 	<Header />
 	<App />
-
 </div>
 
 <style>
-	*{
+	* {
 		margin: 0px;
 		padding: 0px;
 	}
@@ -33,12 +32,11 @@
 		width: 100vw;
 		height: 100vh;
 		color: white;
-		background-size: cover;  
+		background-size: cover;
 		background-repeat: no-repeat;
 		background-position: center center;
-
 	}
-	div::before{
+	div::before {
 		filter: blur(3px);
 	}
 </style>

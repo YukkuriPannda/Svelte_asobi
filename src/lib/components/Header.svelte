@@ -5,7 +5,7 @@
 	<div class="Buttons">
 		<div class="HomeButton Button">
 			<a href="/">
-				<img src="RhoknovLogo.svg"/>
+				<img src="/RhoknovLogo.svg"/>
 			</a>
 
 		</div>
@@ -30,11 +30,7 @@
 		display: flex;
 		align-items:center;
 		vertical-align: middle;
-	}
-	.HomeButton{
-		margin: 30px 20px;
-		width: 30px;
-		height: 30px;
+		height:fit-content;
 	}
 	.Header{
 		background-color: #1b1b1b;
@@ -50,12 +46,17 @@
 		height:30px;
 		margin: 20px 15px;
 		text-align: center;
-		padding: 0px;
+		padding: 1px;
 	}
 	.Button a{
-		display: flex; 
+		display: block; 
 		justify-content: center;
 		align-items: center;
-		height: 100%;	
+		height: 100%;
+	}
+	.HomeButton{
+		margin: 30px 20px;
+		width: 30px;
+		height: 30px;
 	}
 </style>
