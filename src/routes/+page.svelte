@@ -1,6 +1,5 @@
 <script lang="ts">
 	import App from '$lib/components/App.svelte';
-	import Blog from '$lib/components/BlogDashboard.svelte';
 	import Header from '$lib/components/Header.svelte';
 	export const pererender = true;
 </script>
