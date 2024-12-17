@@ -8,8 +8,8 @@
 <div class="main">
 	{#each articles as _, i}
 		<BlogPanel
-			title={parseMD(articles[i].md).metadata.title}
-			id={articles[i].filename}
+			title={articles[i].title}
+			id={articles[i].slug}
 			date={new Date()}
 			sumnail_path={'RhoknovLogo.svg'}
 			tags={[]}

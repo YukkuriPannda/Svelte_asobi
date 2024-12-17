@@ -1,0 +1,22 @@
+{
+  "draft": false,
+  "title": "huga titleだよ",
+  "date": "2022-03-11T00:00:00.000Z",
+  "body": {
+    "raw": "# Hoge\nHuga2\n1. Huga\n2. Hugb",
+    "html": "<h1>Hoge</h1>\n<p>Huga2</p>\n<ol>\n<li>Huga</li>\n<li>Hugb</li>\n</ol>"
+  },
+  "_id": "posts/TestBlog2.md",
+  "_raw": {
+    "sourceFilePath": "posts/TestBlog2.md",
+    "sourceFileName": "TestBlog2.md",
+    "sourceFileDir": "posts",
+    "contentType": "markdown",
+    "flattenedPath": "posts/TestBlog2"
+  },
+  "type": "Post",
+  "slug": "TestBlog2",
+  "slugFull": "/posts/TestBlog2",
+  "fileName": "TestBlog2",
+  "suffix": ".md"
+}

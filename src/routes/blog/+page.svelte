@@ -3,20 +3,15 @@
 	import BlogDashboard from '$lib/components/BlogDashboard.svelte';
 	import Header from '$lib/components/Header.svelte';
 	import { onMount } from 'svelte';
+	import { allPosts } from 'contentlayer/generated'
 	export let data;
 	console.log(data);
+
 </script>
 
 <div>
 	<Header />
-
-	{#await data.articles}
-		<p>waiting...</p>
-	{:then articles}
-		<BlogDashboard {articles} />
-	{:catch error}
-		<p>{error}</p>
-	{/await}
+	<BlogDashboard articles ={ allPosts } />
 </div>
 
 <style>

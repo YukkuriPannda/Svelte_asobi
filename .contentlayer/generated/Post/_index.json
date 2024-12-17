@@ -1,0 +1,46 @@
+[
+  {
+    "draft": false,
+    "title": "初投稿のブログテストだよ",
+    "date": "2022-03-11T00:00:00.000Z",
+    "body": {
+      "raw": "# 📄初投稿です。よろしく\nやっとブログを作れた。\n思い立ってはや2年、色々なフレームワークなどをゲーム制作の間を縫って試しつつ、やっと完成まで漕ぎ着けた\n## 私について\nゲームプログラマーです。\n写真も撮ります。ウェブも書きます。\nデザインもします。\n多趣味とよくいわれます。\nhttps://twitter.com/Rhoknov\n## 🛠️ブログの技術構成について\n基本的には以下のフレームワーク、パッケージを使用している。\n- svelte\n- sveltekit\n- cloud flare\n- contentlayer\n- github-markdown-css\n- svelte-markdown\n\n記事の内容をmarkdownのファイルを書いて、そこからcontentlayerで記事一覧のファイルを作る。\n\n```ts\nimport posts__testBlog1Md from './posts__TestBlog1.md.json' assert { type: 'json' }\nimport posts__testBlog2Md from './posts__TestBlog2.md.json' assert { type: 'json' }\n\nexport const allPosts = [posts__testBlog1Md, posts__testBlog2Md]\n```\n生成した記事一覧ファイルを、+page.svelteでimportし、svelte-markdownでmarkdown形式のテキストをsvelteのcompornentに変換し、その上からgithub-markdown-cssを適用、表示している。\n## ContentLayerについて\nContentLayerとは、markdown形式のファイルをjson形式のファイルにまとめ、staticなサイトでも、markdown形式で書いた記事を扱うことができるツールだ。  \nNext.jsにおいては公式でサポートされているが、Svelteにおいては公式にサポートするかの投票が行われた以外の音沙汰はない。  \nそのため、[こちら](https://github.com/git-no/sveltekit-contentlayer-example/tree/main)のリポジトリを参考に、```npm run buid```時に```contentlayer build```が行われるように設定した。  \n上質なリポジトリでとても助かった。",
+      "html": "<h1>📄初投稿です。よろしく</h1>\n<p>やっとブログを作れた。\n思い立ってはや2年、色々なフレームワークなどをゲーム制作の間を縫って試しつつ、やっと完成まで漕ぎ着けた</p>\n<h2>私について</h2>\n<p>ゲームプログラマーです。\n写真も撮ります。ウェブも書きます。\nデザインもします。\n多趣味とよくいわれます。\nhttps://twitter.com/Rhoknov</p>\n<h2>🛠️ブログの技術構成について</h2>\n<p>基本的には以下のフレームワーク、パッケージを使用している。</p>\n<ul>\n<li>svelte</li>\n<li>sveltekit</li>\n<li>cloud flare</li>\n<li>contentlayer</li>\n<li>github-markdown-css</li>\n<li>svelte-markdown</li>\n</ul>\n<p>記事の内容をmarkdownのファイルを書いて、そこからcontentlayerで記事一覧のファイルを作る。</p>\n<pre><code class=\"language-ts\">import posts__testBlog1Md from './posts__TestBlog1.md.json' assert { type: 'json' }\nimport posts__testBlog2Md from './posts__TestBlog2.md.json' assert { type: 'json' }\n\nexport const allPosts = [posts__testBlog1Md, posts__testBlog2Md]\n</code></pre>\n<p>生成した記事一覧ファイルを、+page.svelteでimportし、svelte-markdownでmarkdown形式のテキストをsvelteのcompornentに変換し、その上からgithub-markdown-cssを適用、表示している。</p>\n<h2>ContentLayerについて</h2>\n<p>ContentLayerとは、markdown形式のファイルをjson形式のファイルにまとめ、staticなサイトでも、markdown形式で書いた記事を扱うことができるツールだ。<br>\nNext.jsにおいては公式でサポートされているが、Svelteにおいては公式にサポートするかの投票が行われた以外の音沙汰はない。<br>\nそのため、<a href=\"https://github.com/git-no/sveltekit-contentlayer-example/tree/main\">こちら</a>のリポジトリを参考に、<code>npm run buid</code>時に<code>contentlayer build</code>が行われるように設定した。<br>\n上質なリポジトリでとても助かった。</p>"
+    },
+    "_id": "posts/TestBlog1.md",
+    "_raw": {
+      "sourceFilePath": "posts/TestBlog1.md",
+      "sourceFileName": "TestBlog1.md",
+      "sourceFileDir": "posts",
+      "contentType": "markdown",
+      "flattenedPath": "posts/TestBlog1"
+    },
+    "type": "Post",
+    "slug": "TestBlog1",
+    "slugFull": "/posts/TestBlog1",
+    "fileName": "TestBlog1",
+    "suffix": ".md"
+  },
+  {
+    "draft": false,
+    "title": "huga titleだよ",
+    "date": "2022-03-11T00:00:00.000Z",
+    "body": {
+      "raw": "# Hoge\nHuga2\n1. Huga\n2. Hugb",
+      "html": "<h1>Hoge</h1>\n<p>Huga2</p>\n<ol>\n<li>Huga</li>\n<li>Hugb</li>\n</ol>"
+    },
+    "_id": "posts/TestBlog2.md",
+    "_raw": {
+      "sourceFilePath": "posts/TestBlog2.md",
+      "sourceFileName": "TestBlog2.md",
+      "sourceFileDir": "posts",
+      "contentType": "markdown",
+      "flattenedPath": "posts/TestBlog2"
+    },
+    "type": "Post",
+    "slug": "TestBlog2",
+    "slugFull": "/posts/TestBlog2",
+    "fileName": "TestBlog2",
+    "suffix": ".md"
+  }
+]
