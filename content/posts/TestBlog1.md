@@ -19,8 +19,9 @@ https://twitter.com/Rhoknov
 - contentlayer
 - github-markdown-css
 - svelte-markdown
-
-記事の内容をmarkdownのファイルを書いて、そこからcontentlayerで記事一覧のファイルを作る。
+今回はデプロイにcloud flareを使うため、静的なサイトにしなければいけない。
+そのため記事の内容を返すapiを作るなどの動的な機能を使うことはできない。
+そこで今回は記事の内容をmarkdownのファイルを書いて、そこからcontentlayerで記事一覧のファイルを生成するという手段を取る。
 
 ```ts
 import posts__testBlog1Md from './posts__TestBlog1.md.json' assert { type: 'json' }
@@ -29,6 +30,8 @@ import posts__testBlog2Md from './posts__TestBlog2.md.json' assert { type: 'json
 export const allPosts = [posts__testBlog1Md, posts__testBlog2Md]
 ```
 生成した記事一覧ファイルを、+page.svelteでimportし、svelte-markdownでmarkdown形式のテキストをsvelteのcompornentに変換し、その上からgithub-markdown-cssを適用、表示している。
+記事を投稿するときは記事のmarkdownファイルをgithubリポジトリにコミットするだけだ。
+cloudflare側がコミットを検知したらリポジトリから```npm run buid```を自動的に実行し、サイトが公開される。
 ## ContentLayerについて
 ContentLayerとは、markdown形式のファイルをjson形式のファイルにまとめ、staticなサイトでも、markdown形式で書いた記事を扱うことができるツールだ。  
 Next.jsにおいては公式でサポートされているが、Svelteにおいては公式にサポートするかの投票が行われた以外の音沙汰はない。  
