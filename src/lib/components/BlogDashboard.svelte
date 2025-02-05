@@ -1,4 +1,3 @@
-
 <script lang="ts">
 	import BlogPanel from './BlogPanel.svelte';
 	import parseMD from 'parse-md';
@@ -10,8 +9,8 @@
 		<BlogPanel
 			title={articles[i].title}
 			id={articles[i].slug}
-			date={new Date()}
-			sumnail_path={'RhoknovLogo.svg'}
+			date={articles[i].date}
+			thumnail_path={articles[i].thumnail_path}
 			tags={[]}
 			likes={1}
 		/>

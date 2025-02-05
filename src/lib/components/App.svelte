@@ -45,9 +45,14 @@
 			<p>KLOUD Hackathon#3 Excellence Award</p>
 		</div>
 	</div>
+	<div class = "timeline">
+		<a class = "twitter-timeline" data-width="500" data-height="300" data-theme="dark" href="https://twitter.com/Rhoknov?ref_src=twsrc%5Etfw">Tweets by Rhoknov</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+	</div>
+	
+	
 </div>
 
-<style>
+<style lang="scss">
 	div.Body {
 		height: 100%;
 		width: auto;
@@ -108,5 +113,8 @@
 	}
 	.KLOUD img{
 		filter: invert(84%) sepia(0%) saturate(3046%) hue-rotate(49deg) brightness(97%) contrast(85%);
+	}
+	:global(.twitter-timeline){
+		margin: auto;
 	}
 </style>

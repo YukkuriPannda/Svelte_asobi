@@ -17,6 +17,7 @@ export type Post = {
   draft: boolean
   title: string
   description?: string | undefined
+  thumnail_path?: string | undefined
   date: IsoDateTimeString
   authors?: Author[] | undefined
   /** Markdown file body */
