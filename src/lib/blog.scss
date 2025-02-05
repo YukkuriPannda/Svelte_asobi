@@ -1,0 +1,58 @@
+:global(.body) {
+  margin: 0;
+  font-family: sans-serif;
+}
+.body{
+  background-color: #202020;
+  color:#fff;
+
+}
+.markdown-body{
+  margin: 20px auto 0px auto;
+  padding: 20px 50px;
+  width: 40%;
+  background-color: #1b1b1b;
+  min-height: 100vh;
+  strong {
+      color: rgb(225, 109, 0);
+      font-size: 18px;
+      font-weight: bold;
+      margin-left: 10px;
+      margin-right: 10px;
+  } 
+  p {
+     color: rgb(206, 206, 206);
+     font-size: 17px;
+     line-height: 17px;
+  }
+  h1 {
+    font-weight: bold;
+  }
+  ol {
+    list-style-type: none;
+    counter-reset: step-counter;
+    content: counter(step-counter);
+    padding-left: 0px;
+    font-size: 19px;
+  }
+
+  li::before {
+    counter-increment: step-counter;
+    content: counter(step-counter);
+    padding-left: 10px;
+    border-left: 10px solid #33383e;
+    margin-right: 20px;
+  }
+  iframe{
+    margin: 30px auto;
+  }
+  img{
+    margin: 30px auto;
+  }
+}
+
+@media (max-width: 1080px) {
+  .markdown-body {
+    width: 90%;
+  }
+}

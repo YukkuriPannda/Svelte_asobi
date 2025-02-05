@@ -1,8 +1,6 @@
 <script lang="ts">
-	import App from '$lib/components/App.svelte';
 	import BlogDashboard from '$lib/components/BlogDashboard.svelte';
 	import Header from '$lib/components/Header.svelte';
-	import { onMount } from 'svelte';
 	import { allPosts } from 'contentlayer/generated'
 	export let data;
 	console.log(data);

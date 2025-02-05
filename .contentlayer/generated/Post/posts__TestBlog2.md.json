@@ -1,9 +1,9 @@
 {
   "draft": false,
   "title": "huga titleだよ",
-  "date": "2022-03-11T00:00:00.000Z",
+  "date": "2022-03-10T15:00:00.000Z",
   "body": {
-    "raw": "# Hoge\nHuga2\n1. Huga\n2. Hugb",
+    "raw": "# Hoge\r\nHuga2\r\n1. Huga\r\n2. Hugb",
     "html": "<h1>Hoge</h1>\n<p>Huga2</p>\n<ol>\n<li>Huga</li>\n<li>Hugb</li>\n</ol>"
   },
   "_id": "posts/TestBlog2.md",

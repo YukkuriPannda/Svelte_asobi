@@ -47,6 +47,9 @@ export const Post = defineDocumentType(() => ({
 		description: {
 			type: 'string'
 		},
+		thumnail_path: {
+			type: 'string'
+		},
 		date: {
 			type: 'date',
 			required: true

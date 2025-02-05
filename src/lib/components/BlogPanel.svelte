@@ -4,17 +4,17 @@
 	export var tags: string[];
 	export var date: Date;
 	export var likes: number;
-	export var sumnail_path: string;
+	export var thumnail_path: string;
 </script>
 
 <div class="main">
-	<img src={sumnail_path} />
+	<img src={thumnail_path} />
 	<div>
 		<h1><a href="/blog/{id}">{title}</a></h1>
 		<h2>
-			{date.getFullYear().toString()}年
-			{date.getMonth().toString()}月
-			{date.getDate()}日
+			{new Date(date).getFullYear().toString()}年
+			{(new Date(date).getMonth()+1).toString()}月
+			{new Date(date).getDate()}日
 		</h2>
 	</div>
 </div>
