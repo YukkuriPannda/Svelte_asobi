@@ -2,6 +2,7 @@
 title: ワイヤレスヘッドフォンJBL T450BTを改造してみよう#その１
 date: 2025-02-04
 thumnail_path: https://img.rhoknov.net/thumnail.png
+description: 1. バッテリーの交換 2. 有線モードの追加 3. オレンジのアクセントカラーを入れる 4. リケーブルへの対応 5. ヘッドバンドの追加
 ---
 
 ## ワイヤレスヘッドフォンを入手した

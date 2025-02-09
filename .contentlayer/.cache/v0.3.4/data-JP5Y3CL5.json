@@ -4,7 +4,8 @@
       "document": {
         "draft": false,
         "title": "ワイヤレスヘッドフォンJBL T450BTを改造してみよう#その１",
-        "thumnail_path": "https://img.rhoknov.net/thumnail.png\r",
+        "description": "1. バッテリーの交換 2. 有線モードの追加 3. オレンジのアクセントカラーを入れる 4. リケーブルへの対応 5. ヘッドバンドの追加\r",
+        "thumnail_path": "https://img.rhoknov.net/thumnail.png",
         "date": "2025-02-04T00:00:00.000Z",
         "body": {
           "raw": "\r\n## ワイヤレスヘッドフォンを入手した\r\n\r\nワイヤレスヘッドフォンが自宅に落ちていた。\r\n\r\nバッテリーがへたっていたためバッテリー交換をしようと思う。\r\n\r\nでも、それだけじゃつまらんじゃん？ いろいろ改造したいよね\r\n\r\n## 今回改造していくヘッドフォンについて\r\n\r\n![JBLT450BT](https://img.rhoknov.net\\450BT_black_angle_01-1606x1606px.jpg)\r\n\r\n**JBL T450BT**\r\nJBLから2017年にリリースされた5000円中盤の**ワイヤレスヘッドフォン**で低音に強いのが特徴だ。\r\n\r\n同社から発売されたT450のBluetoothバージョンとなっている。\r\n\r\nドライバ径は32mmで重量は320gと軽量だ。\r\n\r\n公称では11時間充電が持つが、長年の酷使により１時間ともたない高級耳当てと化した。\r\n\r\n## どのような改造をしたいか\r\n\r\nどのような改造をしていこう\r\n\r\n1. バッテリーの交換\r\n2. 有線モードの追加\r\n3. オレンジのアクセントカラーを入れる\r\n4. リケーブルへの対応\r\n5. ヘッドバンドの追加\r\n\r\n1については当然必要だ。これがないと動かない。\r\n\r\n2以降は完全に趣味である。最近**MOON DROP dawn\r\npro**というポータブルオーディオDACを購入した。\r\n\r\nこいつを使い倒したいのである。\r\n\r\nmoon drop dawn\r\nproは4.4mmバランス接続に対応しているため、バランス接続してみたら面白そうだ\r\n\r\n4は単純にかっこいいからである。\r\n\r\n最近黒とオレンジの色の組み合わせにはまっている。ただそれだけだ。\r\n\r\n5はヘッドバンドがあるだけで高見えするから。男の子って単純ね。\r\n\r\n## 分解してみよう\r\n\r\nとりあえず参考にこの動画を見る\r\n\r\n<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/j61LaWcByOM?si=ijVutsoRyQFQPIFw\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>\r\n\r\nなになにイヤーパッドを外すとネジが3つ出てきて...?そこをあけると...?\r\n\r\n![1](https://img.rhoknov.net\\AP1GczPQciAPTBr3llkXB1FfrY6dmsA4.png)\r\n\r\nおおバッテリーと基盤が出てきた\r\n\r\nふた側はドライバーユニットとなっており、二つの電極のみが露出している。\r\n\r\nその電極と基盤側の電極を触れ合わせると回路が導通するようだ。\r\n\r\n~~いいんか...こんなんで...~~\r\n\r\n![2](https://img.rhoknov.net\\AP1GczN8Vk2DZXuQ2-V1S5XWFTMB0To6.png)\r\n\r\nバッテリーはこんな感じ\r\n\r\n安全回路つきの3.7Vリポバッテリーだ。\r\n\r\n## 音、出してみよう\r\n\r\nいったんドライバユニットも出てきたところだし音声波形を流して音を出してみたい。\r\n\r\nということで用意したのはこの二つ\r\n![3](https://img.rhoknov.net\\AP1GczMeXMCEd9omSydB1eVsNcZYeGQx.png)\r\n**我が家の中でいちばん壊れてもどうにかなる音声波形を出力してくれる装置～～～～**\r\n![4](https://img.rhoknov.net\\AP1GczNgfkbssdZNZn8cH7VIzUt_mzmu.png)\r\n**そこらへんに落ちてた3.5mmの延長ケーブルをぶった切って芯線をひねり出して無理やりワニ口にはんだでくっつけたやつ～～～～～**\r\n\r\n~~なんか画像では片方ちぎれてるけど～～～～~~\r\n\r\n**こいつを～～～～～～～？？？？？**\r\n\r\n![5](https://img.rhoknov.net/plboq-pdiik.gif)\r\n\r\n**刺す～～～～～～～～！！！！！**\r\n\r\n![6](https://img.rhoknov.net/IMG_3205.gif)\r\n\r\n**鳴らす～～～～～～～！！！！！**\r\n\r\n**！！！！！**\r\n\r\n**！！！！！**\r\n\r\n**鳴る～～～～～～～！！！！！**\r\n\r\nということで、なった。 ここに電流を流すことで音が流れることがわかった。\r\n\r\n## もう一段階分解しつつ寸法を図る\r\n\r\n![7](https://img.rhoknov.net/AP1GczMnjcqh6DyxjNZNiwV2cdjXJxyW.png)\r\n\r\n/ ﾊﾟｶ \\\r\n\r\n超シンプル。\r\n\r\nどうやら緑の基盤の電極に電流を流せばいいようだ。\r\n\r\n今回は有線モードとBluetoothモード両方選択できるようにしたいので新規に基盤を作る必要がある。\r\n\r\nということで基盤のサイズの制限を調べるために完成予想図を下記ながら寸法を調べていこう。\r\n\r\n![8](https://img.rhoknov.net\\AP1GczOThvdHdA1B1WZyXk0Y6KTXlWKX.png)\r\n\r\nこんなかんじの構造で作ればいけそう。\r\n\r\nオレンジが3.5mmジャック、緑が基盤あとはまあノリだ。\r\n\r\nネジは一つぶち抜く必要がありそう。\r\n\r\n## To be contenue...\r\n\r\n今日はつかれたのでここまで。\r\n\r\n次回は回路図を書いて部品選定を行い、組んでみようともっている。\r\n\r\n割と長期シリーズになる気がする\r\n",
@@ -24,7 +25,7 @@
         "fileName": "JBLT450bt01",
         "suffix": ".md"
       },
-      "documentHash": "1738719248015",
+      "documentHash": "1739071353239",
       "hasWarnings": false,
       "documentTypeName": "Post"
     },

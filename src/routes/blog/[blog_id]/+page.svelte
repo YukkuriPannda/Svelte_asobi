@@ -8,16 +8,31 @@
 	var source = '';
 	var date = '';
 	var title = '';
+	var description: string | undefined = '';
+	var thumnail_path: string | undefined = '';
 	var post = allPosts.find((post)=>post.slug == data.blogid)
 	if(post){
 		source =post.body.raw;
 		date = new Date(post.date).toDateString()
 		title = post.title
+		description =  post.description == undefined? post.description : post.description
+		thumnail_path = post.thumnail_path == undefined? post.thumnail_path : post.thumnail_path
 	}else{
 		source = "# 404"
 	}
 	console.log(data);
 </script>
+<svelte:head>
+	<title>{title}</title>
+	<meta name="description" content="{description}">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="og:title" content="{title}">
+	<meta name="og:description" content="{description}">
+	<meta name="og:image" content={thumnail_path}>
+	<meta name="og:url" content="https://rhoknov.net/blog/${data.blogid}">
+	<meta name="og:type" content="article">
+	<meta name="og:site_name" content="rhoknov.net">
+</svelte:head>
 
 <div class="body">
 	<Header />
