@@ -1,17 +1,16 @@
 <script lang="ts">
 	import BlogPanel from './BlogPanel.svelte';
-	import parseMD from 'parse-md';
-	export let articles
+	export let articles;
 </script>
 
 <div class="main">
 	{#each articles as _, i}
 		<BlogPanel
 			title={articles[i].title}
-			id={articles[i].slug}
+			id={articles[i].id}
 			date={articles[i].date}
 			thumnail_path={articles[i].thumnail_path}
-			tags={[]}
+			tags={articles[i].tags}
 			likes={1}
 		/>
 	{/each}

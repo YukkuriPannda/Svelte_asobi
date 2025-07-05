@@ -1,15 +1,14 @@
 <script lang="ts">
 	import BlogDashboard from '$lib/components/BlogDashboard.svelte';
 	import Header from '$lib/components/Header.svelte';
-	import { allPosts } from 'contentlayer/generated'
+	import { allPosts } from 'contentlayer/generated';
 	export let data;
 	console.log(data);
-
 </script>
 
 <div>
 	<Header />
-	<BlogDashboard articles ={ allPosts } />
+	<BlogDashboard articles={allPosts} />
 </div>
 
 <style>

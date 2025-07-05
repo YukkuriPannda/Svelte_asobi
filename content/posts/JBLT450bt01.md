@@ -1,4 +1,5 @@
 ---
+draft: true
 title: ワイヤレスヘッドフォンJBL T450BTを改造してみよう#その１
 date: 2025-02-04
 thumnail_path: https://img.rhoknov.net/thumnail.png

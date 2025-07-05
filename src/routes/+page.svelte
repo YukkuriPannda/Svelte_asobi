@@ -35,7 +35,4 @@
 		background-repeat: no-repeat;
 		background-position: center center;
 	}
-	div::before {
-		filter: blur(3px);
-	}
 </style>
