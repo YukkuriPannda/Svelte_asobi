@@ -1,6 +1,21 @@
 [
   {
     "draft": true,
+    "title": "額窓",
+    "date": "2025-03-03T00:00:00.000Z",
+    "img_path": "https://img.rhoknov.net/blog_imgs/IMG_0854.jpg",
+    "equipments": [
+      "EF-S 24mm",
+      "Canon EOS70D"
+    ],
+    "tags": [
+      "StreetPhotograhy"
+    ],
+    "explanation": "<p>絵画になるような題材はいたるところにある。</p>\n<p>カメラで切取り、額窓しよう。</p>\n<p>あなたの生活のいいところを見つけよう。</p>\n<p>ポケットに、カメラをいれて</p>\n",
+    "id": "gakusou"
+  },
+  {
+    "draft": true,
     "title": "漁港",
     "date": "2025-03-03T00:00:00.000Z",
     "img_path": "https://img.rhoknov.net/blog_imgs/IMG_8948.jpg",
@@ -8,26 +23,25 @@
       "StreetPhotograhy"
     ],
     "equipments": [
-      "EF-S 24mm",
-      "Canon EOS70D"
+      "EF-50mm",
+      "Canon EOS5D"
     ],
     "explanation": "<p>熱海で撮影した一枚。 熱海の漁港は全体的な彩度が低い。\nそれは彩度が高いものは潮風にさらされ劣化が進むためだが、このドラム缶だけが誇らしげに鮮やかな色を放っていた</p>\n",
     "id": "gyokou"
   },
   {
     "draft": true,
-    "title": "雨",
+    "title": "光、影01",
     "date": "2025-03-03T00:00:00.000Z",
-    "img_path": "https://img.rhoknov.net/blog_imgs/IMG_8831.jpg",
+    "img_path": "https://img.rhoknov.net/blog_imgs/IMG_4567.jpg",
     "equipments": [
-      "Canon EOS70D",
-      "EF-S 24mm"
+      "Canon EOS70D"
     ],
     "tags": [
       "StreetPhotograhy"
     ],
-    "explanation": "<p>熱海で撮影した一枚。\n傘というオブジェクトは被写体の匿名性を向上させるというのは有名な話であるが、それはビニール傘でも同様のようだ。\n傘が白く光ることにより、薄暗い周りの雰囲気との対比構造がつくれ、傘にアイコン的な意味を持たせることができた。</p>\n",
-    "id": "kasa copy"
+    "explanation": "<p>マレーシアでの村での一枚。</p>\n<p>いい影を見つけた。いい光を見つけた。</p>\n<p>たったそれだけだが、それが記憶を呼び起こす。</p>\n",
+    "id": "hikari_kage01"
   },
   {
     "draft": true,
@@ -35,13 +49,54 @@
     "date": "2025-03-03T00:00:00.000Z",
     "img_path": "https://img.rhoknov.net/blog_imgs/IMG_8831.jpg",
     "equipments": [
+      "EF 50mm",
+      "Canon EOS5D"
+    ],
+    "tags": [
+      "StreetPhotograhy"
+    ],
+    "explanation": "<p>熱海で撮影した一枚。</p>\n<p>傘というオブジェクトは被写体の匿名性を向上させるというのは有名な話であるが、それはビニール傘でも同様のようだ。</p>\n<p>傘が白く光ることにより、薄暗い周りの雰囲気との対比構造がつくれ、傘にアイコン的な意味を持たせることができた。</p>\n",
+    "id": "kasa"
+  },
+  {
+    "draft": true,
+    "title": "その手",
+    "date": "2025-03-03T00:00:00.000Z",
+    "img_path": "https://img.rhoknov.net/blog_imgs/IMG_2340-%E5%BC%B7%E5%8C%96-NR.jpg",
+    "equipments": [
+      "Canon EOS5D"
+    ],
+    "tags": [
+      "StreetPhotograhy"
+    ],
+    "explanation": "<p>花火を持つその手には、私を育ててくれたその手には、長年の苦労と感情が皺として刻み込まれている。</p>\n",
+    "id": "sonote"
+  },
+  {
+    "draft": true,
+    "title": "出口、または入口",
+    "date": "2025-07-27T00:00:00.000Z",
+    "img_path": "https://img.rhoknov.net/blog_imgs/0020_19A.jpg",
+    "equipments": [],
+    "tags": [
+      "StreetPhotograhy"
+    ],
+    "explanation": "<p>亡くなった祖父がつかっていたOlympus om-1を修復して撮った一枚。</p>\n<p>このホームは万博の会場がある夢洲駅のホームであるが、駅からの出口であるのと同時にまた、夢への入り口でもあると思う。</p>\n",
+    "id": "ugoki_houkou01 copy"
+  },
+  {
+    "draft": true,
+    "title": "動き、方向01",
+    "date": "2025-03-03T00:00:00.000Z",
+    "img_path": "https://img.rhoknov.net/blog_imgs/IMG_1008.jpg",
+    "equipments": [
       "EF-S 24mm",
       "Canon EOS70D"
     ],
     "tags": [
       "StreetPhotograhy"
     ],
-    "explanation": "<p>熱海で撮影した一枚。\n傘というオブジェクトは被写体の匿名性を向上させるというのは有名な話であるが、それはビニール傘でも同様のようだ。\n傘が白く光ることにより、薄暗い周りの雰囲気との対比構造がつくれ、傘にアイコン的な意味を持たせることができた。</p>\n",
-    "id": "kasa"
+    "explanation": "<p>動きは至る所にある。</p>\n<p>明るさの情報しかない。それでも、動いている</p>\n<p>止まっていても、動いている</p>\n",
+    "id": "ugoki_houkou01"
   }
 ]

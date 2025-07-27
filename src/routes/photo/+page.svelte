@@ -10,12 +10,14 @@
 		pushState('/photo/' + id, {});
 		detail_modal = true;
 		open_photo_id = id;
+		document.getElementsByTagName('body')[0].classList.add('scrolllock');
 	}
 	function closePhotoPost() {
 		if (!detail_modal) return;
 		pushState('/photo/', {});
 		detail_modal = false;
 		open_photo_id = '';
+		document.getElementsByTagName('body')[0].classList.remove('scrolllock');
 	}
 	onMount(() => {
 		const urlParams = new URLSearchParams(window.location.search);
@@ -43,11 +45,14 @@
 </div>
 
 <style lang="scss">
-	.scrolllock {
-		overflow: hidden;
+	n :global(body) {
+		margin: 0;
 	}
 	:global(body) {
-		margin: 0;
+		overflow: auto;
+	}
+	:global(body.scrolllock) {
+		overflow: hidden;
 	}
 	.body {
 		width: 60%;
