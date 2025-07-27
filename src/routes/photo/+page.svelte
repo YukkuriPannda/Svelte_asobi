@@ -61,6 +61,7 @@
 		flex-wrap: wrap;
 		filter: blur(0px);
 		transition: filter 0.3s ease-in-out;
+		background-color: white;
 	}
 	.photoPost {
 		display: flex;

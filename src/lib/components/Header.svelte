@@ -5,9 +5,8 @@
 	<div class="Buttons">
 		<div class="HomeButton Button">
 			<a href="/">
-				<img src="/RhoknovLogo.svg"/>
+				<img src="/RhoknovLogo.svg" />
 			</a>
-
 		</div>
 		<div class="BasicButtons">
 			<div class="BlogButton Button">
@@ -16,45 +15,44 @@
 			<div class="WorksButton Button">
 				<a href="/works"> works </a>
 			</div>
-	
+
 			<div class="PhotoButton Button">
 				<a href="/photo"> photo </a>
 			</div>
-
 		</div>
 	</div>
 </div>
 
 <style>
-	.Buttons{
+	.Buttons {
 		display: flex;
-		align-items:center;
+		align-items: center;
 		vertical-align: middle;
-		height:fit-content;
+		height: fit-content;
+		color: white;
 	}
-	.Header{
+	.Header {
 		background-color: #1b1b1b;
 		z-index: 100;
 	}
 	.Header .BasicButtons {
-
 		display: flex;
 		align-items: center;
-		justify-content:center;
+		justify-content: center;
 	}
-	.Button{
-		height:30px;
+	.Button {
+		height: 30px;
 		margin: 20px 15px;
 		text-align: center;
 		padding: 1px;
 	}
-	.Button a{
-		display: block; 
+	.Button a {
+		display: block;
 		justify-content: center;
 		align-items: center;
 		height: 100%;
 	}
-	.HomeButton{
+	.HomeButton {
 		margin: 30px 20px;
 		width: 30px;
 		height: 30px;
