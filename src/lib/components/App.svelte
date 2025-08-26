@@ -10,7 +10,7 @@
 <div class="Body">
 	<div class="RhoknovLogo">
 		<img class = "logo" src ="/RhoknovLogo.svg"/>
-		<p>I am Leader of the Oyamakosen Procon</p>
+		<p>I was the leader of the 2024 Oyama College of Technology Programming Contest project.</p>
 		<div class="icons">
 			<div class="instagram">
 				<a href="https://www.instagram.com/funahaya1991/">
