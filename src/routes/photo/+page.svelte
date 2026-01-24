@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { goto, pushState } from '$app/navigation';
+	import { pushState } from '$app/navigation';
 	import Header from '$lib/components/Header.svelte';
 	import PhotoDetailModal from '$lib/components/PhotoDetailModal.svelte';
+	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
 	import { photoPost } from '$lib/PostData';
 	import { onMount } from 'svelte';
 	let detail_modal = false;
+	let device_mobile = false;
 	let open_photo_id: string = '';
 	function openPhotoPost(id: string) {
 		pushState('/photo/' + id, {});
@@ -25,6 +27,7 @@
 		if (urlParams.get('photo_id')) {
 			openPhotoPost(urlParams.get('photo_id') as string);
 		}
+		device_mobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
 	});
 </script>
 
@@ -33,14 +36,23 @@
 	<div class="body" style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}>
 		{#each photoPost as _, i}
 			<div class="photoPost">
-				<a on:click={() => openPhotoPost(photoPost[i].id)}>
+				<button on:click={() => openPhotoPost(photoPost[i].id)}>
 					<img src={photoPost[i].img_path} />
-				</a>
+				</button>
 			</div>
 		{/each}
 	</div>
-	<div class="modal {detail_modal ? '' : 'hide'}" on:click={() => closePhotoPost()}>
+	<div
+		class="modal {detail_modal && !device_mobile ? '' : 'hide'}"
+		on:click={() => closePhotoPost()}
+	>
 		<PhotoDetailModal id={open_photo_id} />
+	</div>
+	<div
+		class="modal {detail_modal && device_mobile ? '' : 'hide'}"
+		on:click={() => closePhotoPost()}
+	>
+		<PhotoDetailModalMobile id={open_photo_id} />
 	</div>
 </div>
 
@@ -55,7 +67,7 @@
 		overflow: hidden;
 	}
 	.body {
-		width: 60%;
+		width: 60vw;
 		margin: auto;
 		display: flex;
 		flex-wrap: wrap;
