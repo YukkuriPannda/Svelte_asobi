@@ -30,7 +30,6 @@
     font-weight: bold;
   }
   ol {
-    list-style-type: none;
     counter-reset: step-counter;
     content: counter(step-counter);
     padding-left: 0px;
@@ -43,6 +42,22 @@
     padding-left: 10px;
     border-left: 10px solid #33383e;
     margin-right: 20px;
+  }
+  /* Remove numbering and marker for table of contents generated in template */
+  .toc {
+    h2{
+      margin: 20px;
+    }
+    ul { list-style: none; padding-left: 0; margin-left: 0; }
+    li { 
+      list-style: none;
+      margin: 20px 10px;
+    }
+    li::before { content: none; border-left: none; padding-left: 0; margin-right: 0; }
+    background-color: #252525;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 30px 0;
   }
   iframe{
     margin: 30px auto;
