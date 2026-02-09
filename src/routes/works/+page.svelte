@@ -6,10 +6,12 @@
 
 <div>
 	<Header />
-	<Procon />
+	<div class="Panels">
+		<Procon />
+	</div>
 </div>
 
-<style>
+<style lang="scss">
 	:global(body) {
 		margin: 0;
 	}
@@ -19,5 +21,9 @@
 		height: 100vh;
 		background: #1b1b1b;
 		color: white;
+		.Panels{
+			width: 60%;
+			margin: 0 auto;
+		}
 	}
 </style>

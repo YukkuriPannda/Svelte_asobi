@@ -15,7 +15,7 @@
     justify-content: space-evenly;
     padding: 20px;
     border: white solid 2px;
-    border-radius: 30px;
+    border-radius: 10px;
     h1 {
       font-size: 40pt;
       font-family: Futura, 'Futura PT', sans-serif;

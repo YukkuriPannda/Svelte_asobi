@@ -11,7 +11,7 @@
 	<BlogDashboard articles={blogPost} />
 </div>
 
-<style>
+<style lang="scss">
 	:global(body) {
 		margin: 0;
 	}
