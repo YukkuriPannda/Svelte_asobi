@@ -1,10 +1,12 @@
 <script lang="ts">
 	import App from '$lib/components/App.svelte';
 	import Header from '$lib/components/Header.svelte';
+	import Procon from '$lib/components/WorkPanels/Procont.svelte';
 </script>
 
 <div>
 	<Header />
+	<Procon />
 </div>
 
 <style>
