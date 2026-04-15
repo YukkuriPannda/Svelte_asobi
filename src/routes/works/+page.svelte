@@ -1,13 +1,18 @@
 <script lang="ts">
-	import App from '$lib/components/App.svelte';
 	import Header from '$lib/components/Header.svelte';
-	import Procon from '$lib/components/WorkPanels/Procont.svelte';
+
+	const images = [
+		'/Works/01Procon.png',
+		'/Works/02LimiT.png',
+	];
 </script>
 
-<div>
+<div class="page">
 	<Header />
-	<div class="Panels">
-		<Procon />
+	<div class="gallery">
+		{#each images as src}
+			<img {src} alt={src} />
+		{/each}
 	</div>
 </div>
 
@@ -16,14 +21,29 @@
 		margin: 0;
 	}
 
-	div {
+	.page {
 		width: 100vw;
-		height: 100vh;
+		min-height: 100vh;
 		background: #1b1b1b;
 		color: white;
-		.Panels{
-			width: 60%;
-			margin: 0 auto;
+	}
+
+	.gallery {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2rem;
+		padding: 2rem;
+
+		img {
+			max-width: 100%;
+			height: auto;
+			display: block;
+			transition: filter 0.2s ease;
+
+			&:hover {
+				filter: brightness(0.7);
+			}
 		}
 	}
 </style>
