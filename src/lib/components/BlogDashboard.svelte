@@ -20,7 +20,7 @@
 	.main {
 		margin: 0px auto;
 		padding: 20px;
-		width: 90%;
+		width: 60%;
 		background-color: gray;
 		min-height: 100vh;
 	}
