@@ -1,17 +1,20 @@
 <script lang="ts">
 	import Header from '$lib/components/Header.svelte';
 
-	const images = [
-		'/Works/01Procon.png',
-		'/Works/02LimiT.png',
-	];
+	const images = ['/Works/01Procon.png', '/Works/02LimiT.png'];
+	function getSlug(src: string) {
+		const filename = src.split('/').pop() ?? '';
+		return filename.replace(/\.[^.]+$/, '').replace(/^\d+/, '');
+	}
 </script>
 
 <div class="page">
 	<Header />
 	<div class="gallery">
 		{#each images as src}
-			<img {src} alt={src} />
+			<a href={`/blog/${getSlug(src)}`}>
+				<img {src} alt={getSlug(src)} />
+			</a>
 		{/each}
 	</div>
 </div>

@@ -10,7 +10,7 @@
 .markdown-body{
   margin: 20px auto 0px auto;
   border-radius: 20px;
-  padding: 20px 50px;
+  padding: 50px;
   width: 40%;
   background-color: #1b1b1b;
   min-height: 100vh;
@@ -24,7 +24,8 @@
   p {
      color: rgb(206, 206, 206);
      font-size: 17px;
-     line-height: 17px;
+     line-height: 24px;
+     padding: 10px 0px;
   }
   h1 {
     font-weight: bold;
