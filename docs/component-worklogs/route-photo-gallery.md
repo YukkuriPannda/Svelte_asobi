@@ -46,3 +46,16 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - 未確認事項・残課題:
 - 関連コミット・PR:
 ```
+
+### 2026-10-03 — 写真ギャラリーの中央配置修正
+
+- 状態: 検証済み
+- 目的・受け入れ条件: 写真の各行が画面中央に配置され、狭い画面でも写真がはみ出さない。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte` の折り返しFlexに `justify-content: center` を指定。タイルの最大幅を余白込みで制限し、600px以下ではギャラリー幅を100%にする。
+- props・依存コンポーネントへの影響: props・モーダル開閉処理・共有コンポーネントに変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧、写真詳細モーダル背面のギャラリー。
+- 検証コマンド・結果: `npm run check` は既存 `clickToCopy.js` のimplicit anyエラー2件・既存警告24件で失敗。今回追加のエラーなし。`npm run visual -- --grep 'page:photo '` は旧基準に対して全体・ギャラリーの2件が意図した配置差分、残り9件成功。
+- 画面幅別検証: 一時Playwrightスクリプトで320 / 390 / 600 / 768 / 1024 / 1440 / 1920pxを測定。ギャラリーと各行の中心ずれは最大0.016px、写真の画面外へのはみ出しなし。Desktopと390pxの画像も目視確認。一時スクリプトは削除済み。
+- Visual Diffの確認・baseline更新の有無: ギャラリーのactual / diffとページ全体、代表写真詳細を確認し、`npm run visual:update -- --grep 'page:photo(?: |-)'` でphoto関連の基準を更新。通常比較 `npm run visual -- --grep 'page:photo(?: |-)'` は35/35成功。比較閾値の変更なし。
+- 未確認事項・残課題: 実機ブラウザーは未確認。既存の型エラー、写真詳細の `/cameras/EF50mm.png` の404は今回の範囲外。
+- 関連コミット・PR: 未コミット。

@@ -71,6 +71,7 @@
 		margin: auto;
 		display: flex;
 		flex-wrap: wrap;
+		justify-content: center;
 		filter: blur(0px);
 		transition: filter 0.3s ease-in-out;
 		background-color: white;
@@ -78,11 +79,17 @@
 	.photoPost {
 		display: flex;
 		width: 256px;
+		max-width: calc(100% - 40px);
 		margin: 20px;
 		align-items: center;
 		img {
 			width: 100%;
 			height: auto;
+		}
+	}
+	@media (max-width: 600px) {
+		.body {
+			width: 100%;
 		}
 	}
 	.modal {
