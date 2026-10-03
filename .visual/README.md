@@ -43,3 +43,7 @@ npm run visual:update
 検証時のnpm run checkには既存clickToCopy.jsのimplicit anyエラー2件がある。
 
 初回受け入れ確認（2026-10-03）: baseline生成81/81成功、通常比較81/81成功。ヘッダー背景を一時的に赤へ変更した検証で1件失敗しexpected / actual / diff生成を確認、変更を戻して全件再確認済み。
+
+## 写真のタッチ操作回帰テスト
+
+`npm run visual -- --grep 'swipe'` で `tests/visual/photo-swipe.spec.ts` の5件を実行する。Desktopの画像比較とは別に、390×844・Android UA・ChromiumのCDPタッチ入力で、左右切り替え、縦スクロール、短い移動、キャンセル、複数指、一覧の両端、URL同期、切り替え後のタップ閉鎖を確認する。通常のアニメーションでは指追従、左右のスライド、端での戻り、切り替え中の追加入力の抑制を検証し、動きを減らす設定ではスライドが生成されないことも確認する。次の通常操作はスライドと戻りが終わった後に送る。モバイルのスクリーンショットは `.visual/results/photo-swipe-mobile.png` と `.visual/results/photo-swipe-drag.png` に保存するが、baseline比較には含めない。物理端末・Safariの検証結果とは区別する。
