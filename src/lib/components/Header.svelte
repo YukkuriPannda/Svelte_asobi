@@ -1,7 +1,7 @@
 <script>
 </script>
 
-<div class="Header">
+<div class="Header" data-visual-id="header">
 	<div class="Buttons">
 		<div class="HomeButton Button">
 			<a href="/">

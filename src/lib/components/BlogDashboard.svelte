@@ -3,7 +3,7 @@
 	export let articles;
 </script>
 
-<div class="main">
+<div class="main" data-visual-id="blog-dashboard">
 	{#each articles as _, i}
 		<BlogPanel
 			title={articles[i].title}

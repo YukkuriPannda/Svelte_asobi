@@ -33,9 +33,9 @@
 
 <div class={detail_modal ? 'scrolllock' : ''}>
 	<div style={detail_modal ? 'filter: blur(3px)' : ''}><Header /></div>
-	<div class="body" style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}>
+	<div class="body" data-visual-id="photo-gallery" style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}>
 		{#each photoPost as _, i}
-			<div class="photoPost">
+			<div class="photoPost" data-visual-id={`photo-${photoPost[i].id}`}>
 				<button on:click={() => openPhotoPost(photoPost[i].id)}>
 					<img src={photoPost[i].img_path} />
 				</button>

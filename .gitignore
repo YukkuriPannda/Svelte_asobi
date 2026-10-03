@@ -19,3 +19,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Visual test artifacts (baselines and fixtures are tracked)
+.visual/results/
+.visual/report/

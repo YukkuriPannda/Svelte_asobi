@@ -13,9 +13,13 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --plugin-search-dir . --check . && eslint .",
-    "format": "prettier --plugin-search-dir . --write ."
+    "format": "prettier --plugin-search-dir . --write .",
+    "visual": "playwright test",
+    "visual:update": "playwright test --update-snapshots=all",
+    "visual:report": "playwright show-report .visual/report"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/adapter-cloudflare": "^4.7.3",
     "@sveltejs/adapter-node": "^5.2.9",
