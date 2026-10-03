@@ -98,3 +98,11 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - Visual Diffの確認・baseline更新の有無: 静止モーダル8件の差分なし。`.visual/results/photo-swipe-drag.png` を目視確認。baseline更新なし。
 - 未確認事項・残課題: 物理スマホ・iPad・Safari・Desktopタッチ操作は未確認。追加されているユーザーの `content/photos/rot.md` を変更・生成処理へ巻き込まず、Svelteのみをビルドした。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-03 — rotの画像URLとサムネイル不足を修正
+
+- 目的: Cloudflareビルドを止めていた `rot: thumbnail is missing` を解消する。
+- 変更: `content/photos/rot.md` の画像URLをR2のキーに合わせて `photos/IMG_3700.jpg` に修正。既存設定（最大768px、WebP品質80）でrotのサムネイルとmanifestを追加し、元データから写真JSONを再生成。
+- 検証: 公開画像URLはHTTP 200、image/jpeg。既存作業プロセスのファイルロックを避けた一時コピーで、npm 9.6.7の `npm ci --no-audit --no-fund` 成功、修正後の `npm run build` 成功（Cloudflareアダプターを含む）。`npm run check` は既存clickToCopy.jsのimplicit anyエラー2件・警告23件で失敗。
+- 未確認: Cloudflare上の再デプロイ、ブラウザー表示、Visual比較は未実施。写真IDは既存コンテンツのため今回の追加ではない。
+- 関連コミット: 未コミット。

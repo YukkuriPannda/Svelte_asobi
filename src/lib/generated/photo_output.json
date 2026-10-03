@@ -72,6 +72,22 @@
   },
   {
     "draft": true,
+    "title": "rot",
+    "date": "2026-09-23T00:00:00.000Z",
+    "img_path": "https://img.rhoknov.net/photos/IMG_3700.jpg",
+    "equipments": [
+      "EF 50mm",
+      "Canon EOS5D"
+    ],
+    "tags": [
+      "cosplay",
+      "StreetPhotography"
+    ],
+    "explanation": "<p>回る。</p>\n<p>人間は回転運動に美しさを覚えるようにできている。</p>\n<p>合理的な美しさ。</p>\n",
+    "id": "rot"
+  },
+  {
+    "draft": true,
     "title": "その手",
     "date": "2025-03-03T00:00:00.000Z",
     "img_path": "https://img.rhoknov.net/blog_imgs/IMG_2340-%E5%BC%B7%E5%8C%96-NR.jpg",

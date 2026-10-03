@@ -49,6 +49,15 @@
       "thumbnailBytes": 29210
     },
     {
+      "id": "rot",
+      "sourceUrl": "https://img.rhoknov.net/photos/IMG_3700.jpg",
+      "filename": "rot.webp",
+      "width": 768,
+      "height": 512,
+      "sourceBytes": 1497633,
+      "thumbnailBytes": 36014
+    },
+    {
       "id": "sonote",
       "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_2340-%E5%BC%B7%E5%8C%96-NR.jpg",
       "filename": "sonote.webp",

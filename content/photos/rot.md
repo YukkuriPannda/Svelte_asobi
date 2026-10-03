@@ -2,7 +2,7 @@
 draft: true
 title: rot
 date: 2026-09-23
-img_path: https://img.rhoknov.net/Photos/IMG_3700.jpg
+img_path: https://img.rhoknov.net/photos/IMG_3700.jpg
 equipments: [EF 50mm,Canon EOS5D]
 tags: [cosplay,StreetPhotography]
 ---
