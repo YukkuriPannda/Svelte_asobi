@@ -7,7 +7,7 @@
 	export var thumnail_path: string;
 </script>
 
-<div class="main">
+<div class="main" data-visual-id={`blog-card-${id}`}>
 	<img src={thumnail_path} />
 	<div>
 		<h1><a href="/blog/{id}">{title}</a></h1>

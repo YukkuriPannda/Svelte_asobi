@@ -1,4 +1,5 @@
 ---
+draft: true
 title: かわいすぎて中古の内臓アンプベース、Pignose PGB-100買ってしまった
 date: 2025-04-02
 thumnail_path: https://img.rhoknov.net/pignose/IMG_9754.jpg

@@ -1,0 +1,502 @@
+{
+	"version": 1,
+	"environment": {
+		"os": "win32",
+		"playwright": "1.56.1",
+		"browser": "bundled chromium",
+		"viewport": {
+			"width": 1440,
+			"height": 900
+		},
+		"locale": "ja-JP",
+		"timezone": "Asia/Tokyo",
+		"deviceScaleFactor": 1
+	},
+	"stabilization": {
+		"time": "2026-10-03T00:00:00+09:00",
+		"randomSeed": 123456,
+		"animations": "disabled",
+		"remoteImages": "checked-in fixtures",
+		"externalEmbeds": "network blocked; iframe/audio/video hidden"
+	},
+	"pages": [
+		{
+			"id": "home",
+			"route": "/",
+			"url": "/",
+			"ready": "[data-visual-id=\"header\"]",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "profile",
+					"selector": ".RhoknovLogo",
+					"source": "src/lib/components/App.svelte"
+				},
+				{
+					"id": "awards",
+					"selector": ".Awards",
+					"source": "src/lib/components/App.svelte"
+				},
+				{
+					"id": "timeline",
+					"selector": ".timeline",
+					"source": "src/lib/components/App.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog",
+			"route": "/blog",
+			"url": "/blog",
+			"ready": "[data-visual-id=\"header\"]",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "dashboard",
+					"selector": "[data-visual-id=\"blog-dashboard\"]",
+					"source": "src/lib/components/BlogDashboard.svelte"
+				},
+				{
+					"id": "card-Claude_Vibe",
+					"selector": "[data-visual-id=\"blog-card-Claude_Vibe\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				},
+				{
+					"id": "card-drive_my_car",
+					"selector": "[data-visual-id=\"blog-card-drive_my_car\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				},
+				{
+					"id": "card-JBLT450bt01",
+					"selector": "[data-visual-id=\"blog-card-JBLT450bt01\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				},
+				{
+					"id": "card-LimiT",
+					"selector": "[data-visual-id=\"blog-card-LimiT\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				},
+				{
+					"id": "card-onnnanoinai-otokotati",
+					"selector": "[data-visual-id=\"blog-card-onnnanoinai-otokotati\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				},
+				{
+					"id": "card-PignosePGB100",
+					"selector": "[data-visual-id=\"blog-card-PignosePGB100\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				},
+				{
+					"id": "card-TestBlog1",
+					"selector": "[data-visual-id=\"blog-card-TestBlog1\"]",
+					"source": "src/lib/components/BlogPanel.svelte"
+				}
+			]
+		},
+		{
+			"id": "works",
+			"route": "/works",
+			"url": "/works",
+			"ready": "[data-visual-id=\"header\"]",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "gallery",
+					"selector": ".gallery",
+					"source": "src/routes/works/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo",
+			"route": "/photo",
+			"url": "/photo",
+			"ready": "[data-visual-id=\"header\"]",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "gallery",
+					"selector": "[data-visual-id=\"photo-gallery\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-0",
+					"selector": "[data-visual-id=\"photo-gakusou\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-1",
+					"selector": "[data-visual-id=\"photo-gyokou\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-2",
+					"selector": "[data-visual-id=\"photo-hikari_kage01\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-3",
+					"selector": "[data-visual-id=\"photo-kasa\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-4",
+					"selector": "[data-visual-id=\"photo-minimal_and_accent\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-5",
+					"selector": "[data-visual-id=\"photo-sonote\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-6",
+					"selector": "[data-visual-id=\"photo-ugoki_houkou01 copy\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-7",
+					"selector": "[data-visual-id=\"photo-ugoki_houkou01\"]",
+					"source": "src/routes/photo/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-Claude_Vibe",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/Claude_Vibe",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-drive_my_car",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/drive_my_car",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-JBLT450bt01",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/JBLT450bt01",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-LimiT",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/LimiT",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-onnnanoinai-otokotati",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/onnnanoinai-otokotati",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-PignosePGB100",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/PignosePGB100",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "blog-TestBlog1",
+			"route": "/blog/[blog_id]",
+			"url": "/blog/TestBlog1",
+			"ready": ".markdown-body",
+			"components": [
+				{
+					"id": "header",
+					"selector": "[data-visual-id=\"header\"]",
+					"source": "src/lib/components/Header.svelte"
+				},
+				{
+					"id": "article",
+					"selector": ".markdown-body",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				},
+				{
+					"id": "toc",
+					"selector": ".toc",
+					"source": "src/routes/blog/[blog_id]/+page.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-0-gakusou",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/gakusou",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-1-gyokou",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/gyokou",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-2-hikari_kage01",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/hikari_kage01",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-3-kasa",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/kasa",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-4-minimal_and_accent",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/minimal_and_accent",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-5-sonote",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/sonote",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-6-ugoki_houkou01-copy",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/ugoki_houkou01%20copy",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-7-ugoki_houkou01",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/ugoki_houkou01",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		}
+	]
+}

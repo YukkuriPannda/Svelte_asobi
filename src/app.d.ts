@@ -20,3 +20,5 @@ declare global {
 }
 
 export {};
+
+declare module 'github-markdown-css';

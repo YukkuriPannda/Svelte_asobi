@@ -1,18 +1,17 @@
 <script lang="ts">
 	import BlogDashboard from '$lib/components/BlogDashboard.svelte';
 	import Header from '$lib/components/Header.svelte';
-	import { allPosts } from 'contentlayer/generated'
+	import { blogPost } from '$lib/PostData';
 	export let data;
 	console.log(data);
-
 </script>
 
 <div>
 	<Header />
-	<BlogDashboard articles ={ allPosts } />
+	<BlogDashboard articles={blogPost} />
 </div>
 
-<style>
+<style lang="scss">
 	:global(body) {
 		margin: 0;
 	}

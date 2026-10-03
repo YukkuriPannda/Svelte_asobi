@@ -1,4 +1,5 @@
 ---
+draft: true
 title: ワイヤレスヘッドフォンJBL T450BTを改造してみよう#その１
 date: 2025-02-04
 thumnail_path: https://img.rhoknov.net/thumnail.png
@@ -15,7 +16,7 @@ description: 1. バッテリーの交換 2. 有線モードの追加 3. オレ�
 
 ## 今回改造していくヘッドフォンについて
 
-![JBLT450BT](https://img.rhoknov.net\450BT_black_angle_01-1606x1606px.jpg)
+![JBLT450BT](https://img.rhoknov.net/450BT_black_angle_01-1606x1606px.jpg)
 
 **JBL T450BT**
 JBLから2017年にリリースされた5000円中盤の**ワイヤレスヘッドフォン**で低音に強いのが特徴だ。
@@ -60,7 +61,7 @@ proは4.4mmバランス接続に対応しているため、バランス接続し
 
 なになにイヤーパッドを外すとネジが3つ出てきて...?そこをあけると...?
 
-![1](https://img.rhoknov.net\AP1GczPQciAPTBr3llkXB1FfrY6dmsA4.png)
+![1](https://img.rhoknov.net/AP1GczPQciAPTBr3llkXB1FfrY6dmsA4.png)
 
 おおバッテリーと基盤が出てきた
 
@@ -70,7 +71,7 @@ proは4.4mmバランス接続に対応しているため、バランス接続し
 
 ~~いいんか...こんなんで...~~
 
-![2](https://img.rhoknov.net\AP1GczN8Vk2DZXuQ2-V1S5XWFTMB0To6.png)
+![2](https://img.rhoknov.net/AP1GczN8Vk2DZXuQ2-V1S5XWFTMB0To6.png)
 
 バッテリーはこんな感じ
 
@@ -81,9 +82,9 @@ proは4.4mmバランス接続に対応しているため、バランス接続し
 いったんドライバユニットも出てきたところだし音声波形を流して音を出してみたい。
 
 ということで用意したのはこの二つ
-![3](https://img.rhoknov.net\AP1GczMeXMCEd9omSydB1eVsNcZYeGQx.png)
+![3](https://img.rhoknov.net/AP1GczMeXMCEd9omSydB1eVsNcZYeGQx.png)
 **我が家の中でいちばん壊れてもどうにかなる音声波形を出力してくれる装置～～～～**
-![4](https://img.rhoknov.net\AP1GczNgfkbssdZNZn8cH7VIzUt_mzmu.png)
+![4](https://img.rhoknov.net/AP1GczNgfkbssdZNZn8cH7VIzUt_mzmu.png)
 **そこらへんに落ちてた3.5mmの延長ケーブルをぶった切って芯線をひねり出して無理やりワニ口にはんだでくっつけたやつ～～～～～**
 
 ~~なんか画像では片方ちぎれてるけど～～～～~~
@@ -120,7 +121,7 @@ proは4.4mmバランス接続に対応しているため、バランス接続し
 
 ということで基盤のサイズの制限を調べるために完成予想図を下記ながら寸法を調べていこう。
 
-![8](https://img.rhoknov.net\AP1GczOThvdHdA1B1WZyXk0Y6KTXlWKX.png)
+![8](https://img.rhoknov.net/AP1GczOThvdHdA1B1WZyXk0Y6KTXlWKX.png)
 
 こんなかんじの構造で作ればいけそう。
 
