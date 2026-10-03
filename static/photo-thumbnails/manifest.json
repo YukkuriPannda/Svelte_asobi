@@ -1,0 +1,79 @@
+{
+  "width": 768,
+  "quality": 80,
+  "format": "webp",
+  "photos": [
+    {
+      "id": "gakusou",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_0854.jpg",
+      "filename": "gakusou.webp",
+      "width": 512,
+      "height": 768,
+      "sourceBytes": 12229620,
+      "thumbnailBytes": 22236
+    },
+    {
+      "id": "gyokou",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_8948.jpg",
+      "filename": "gyokou.webp",
+      "width": 768,
+      "height": 512,
+      "sourceBytes": 4657945,
+      "thumbnailBytes": 31466
+    },
+    {
+      "id": "hikari_kage01",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_4567.jpg",
+      "filename": "hikari_kage01.webp",
+      "width": 768,
+      "height": 512,
+      "sourceBytes": 12494131,
+      "thumbnailBytes": 35016
+    },
+    {
+      "id": "kasa",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_8831.jpg",
+      "filename": "kasa.webp",
+      "width": 512,
+      "height": 768,
+      "sourceBytes": 6548861,
+      "thumbnailBytes": 30650
+    },
+    {
+      "id": "minimal_and_accent",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/0014_16A.jpg",
+      "filename": "minimal_and_accent.webp",
+      "width": 768,
+      "height": 768,
+      "sourceBytes": 381338,
+      "thumbnailBytes": 29210
+    },
+    {
+      "id": "sonote",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_2340-%E5%BC%B7%E5%8C%96-NR.jpg",
+      "filename": "sonote.webp",
+      "width": 512,
+      "height": 768,
+      "sourceBytes": 15753068,
+      "thumbnailBytes": 9700
+    },
+    {
+      "id": "ugoki_houkou01 copy",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/0020_19A.jpg",
+      "filename": "ugoki_houkou01%20copy.webp",
+      "width": 768,
+      "height": 509,
+      "sourceBytes": 3847664,
+      "thumbnailBytes": 38684
+    },
+    {
+      "id": "ugoki_houkou01",
+      "sourceUrl": "https://img.rhoknov.net/blog_imgs/IMG_1008.jpg",
+      "filename": "ugoki_houkou01.webp",
+      "width": 768,
+      "height": 512,
+      "sourceBytes": 5163785,
+      "thumbnailBytes": 23542
+    }
+  ]
+}
