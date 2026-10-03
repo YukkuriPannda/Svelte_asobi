@@ -3,7 +3,7 @@ draft: true
 title: 雨
 date: 2025-03-03
 img_path: https://img.rhoknov.net/blog_imgs/IMG_8831.jpg
-equipments: [EF 50mm,Canon EOS5D]
+equipments: [EF-50mm,Canon EOS5D]
 tags: [StreetPhotograhy]
 ---
 

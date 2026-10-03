@@ -53,3 +53,17 @@ npm run visual -- --grep 'component:(modal|image)$'
 - 未確認事項・残課題:
 - 関連コミット・PR:
 ```
+
+### 2026-10-03 — 「雨」の機材画像の参照修正
+
+- 状態: 検証済み
+- 目的・受け入れ条件: 写真「雨」のレンズ画像が404にならず読み込まれること。全写真詳細の機材画像にも読み込み失敗がないこと。
+- 原因: `EF 50mm` から生成された `/cameras/EF50mm.png` は存在せず、実ファイルは `EF-50mm.png`。
+- 変更内容・対象ファイル: `content/photos/kasa.md` の機材名を既存の「漁港」と同じ `EF-50mm` に修正し、`npm run build:parse-data` で `src/lib/generated/photo_output.json` を再生成。表示コンポーネントの実装変更なし。
+- props・依存コンポーネントへの影響: 写真ID・propsの変更なし。DesktopとMobileは同じ機材データを参照するため両方に修正が反映される。
+- 影響するページ・表示バリエーション: `/photo/kasa` の機材欄（Desktopのstate3、Mobileの詳細欄）。
+- 回帰検証: `tests/visual/visual.spec.ts` の画像読み込み判定に `/cameras/` を追加。非表示のMobileモーダル内も含め、機材画像の `naturalWidth` が0の場合は失敗させる。
+- 検証コマンド・結果: `npm run build:parse-data` 成功。`npm run visual -- --grep 'component:modal$'` は全8写真で8/8成功。`npm run visual -- --grep 'page:photo-3-kasa '` は3/3成功。`npm run check` は既存 `clickToCopy.js` のimplicit anyエラー2件、警告24件で失敗（今回追加のエラーなし）。`git diff --check` 成功。
+- Visual Diffの確認・baseline更新の有無: 初期モーダルと親ページの比較は差分なし。baseline更新なし。
+- 未確認事項・残課題: Desktopのホイール操作後の見た目、Mobileの表示状態・実機ブラウザーは未確認。画像読み込みはChromium上で検証済み。
+- 関連コミット・PR: 未コミット。

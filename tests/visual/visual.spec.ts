@@ -46,10 +46,13 @@ for (const entry of manifest.pages) {
 					)
 				);
 			});
-			// Missing sources already present in the site remain broken; fixture-backed images must decode.
+			// External photo fixtures and local equipment images must decode.
 			const broken = await page.evaluate(() =>
 				Array.from(document.images)
-					.filter((img) => img.src.startsWith('https://img.rhoknov.net/') && !img.naturalWidth)
+					.filter((img) =>
+						(img.src.startsWith('https://img.rhoknov.net/') ||
+							new URL(img.src).pathname.startsWith('/cameras/')) && !img.naturalWidth
+					)
 					.map((img) => img.src)
 			);
 			expect(broken).toEqual([]);
