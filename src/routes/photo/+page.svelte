@@ -4,6 +4,7 @@
 	import PhotoDetailModal from '$lib/components/PhotoDetailModal.svelte';
 	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
 	import { photoPost } from '$lib/PostData';
+	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 	import { onMount, onDestroy, tick } from 'svelte';
 	let detail_modal = false;
 	let device_mobile = false;
@@ -22,6 +23,11 @@
 	let reduceMotion = false;
 	let swipeAnimation: Animation | null = null;
 	let animationGeneration = 0;
+	let thumbnailErrors = new Set<string>();
+
+	function handleThumbnailError(id: string) {
+		thumbnailErrors = new Set(thumbnailErrors).add(id);
+	}
 
 	function adjacentPhoto(dx: number) {
 		const index = photoPost.findIndex((photo) => photo.id === open_photo_id);
@@ -158,6 +164,12 @@
 			openPhotoPost(urlParams.get('photo_id') as string);
 		}
 		device_mobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
+		for (const image of document.querySelectorAll<HTMLImageElement>('.photoPost img')) {
+			if (image.complete && image.naturalWidth === 0) {
+				const visualId = image.closest<HTMLElement>('.photoPost')?.dataset.visualId;
+				if (visualId?.startsWith('photo-')) handleThumbnailError(visualId.slice('photo-'.length));
+			}
+		}
 		return () => motionPreference.removeEventListener('change', updateMotionPreference);
 	});
 </script>
@@ -167,8 +179,14 @@
 	<div class="body" data-visual-id="photo-gallery" style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}>
 		{#each photoPost as _, i}
 			<div class="photoPost" data-visual-id={`photo-${photoPost[i].id}`}>
-				<button on:click={() => openPhotoPost(photoPost[i].id)}>
-					<img src={photoPost[i].img_path} />
+				<button on:click={() => openPhotoPost(photoPost[i].id)} aria-label={`写真を開く: ${photoPost[i].title}`}>
+					{#if thumbnailErrors.has(photoPost[i].id)}
+						<span class="thumbnail-error" role="img" aria-label={`${photoPost[i].title}のサムネイルを読み込めません`}>
+							サムネイルを読み込めません
+						</span>
+					{:else}
+						<img src={photoThumbnailUrl(photoPost[i].id)} alt={photoPost[i].title} on:error={() => handleThumbnailError(photoPost[i].id)} />
+					{/if}
 				</button>
 			</div>
 		{/each}
@@ -234,6 +252,14 @@
 		img {
 			width: 100%;
 			height: auto;
+		}
+		.thumbnail-error {
+			display: block;
+			min-height: 80px;
+			padding: 2rem 0.5rem;
+			background: #f1f1f1;
+			color: #555;
+			font-size: 0.8rem;
 		}
 	}
 	@media (max-width: 600px) {
