@@ -60,6 +60,19 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - 未確認事項・残課題: 実機ブラウザーは未確認。既存の型エラー、写真詳細の `/cameras/EF50mm.png` の404は今回の範囲外。
 - 関連コミット・PR: 未コミット。
 
+### 2026-10-03 — ギャラリー写真のWebPサムネイル
+
+- 状態: 検証済み
+- 目的・受け入れ条件: `/photo` の一覧では軽量サムネイルだけを取得し、写真を開いたDesktop / Mobile詳細とスワイプ切り替えでは元の `img_path` を取得する。失敗したタイルは元画像にフォールバックせずエラー表示を保つ。
+- 変更内容・対象ファイル: `scripts/photo-thumbnails.mjs` で追跡済み写真のWebPを生成し `static/photo-thumbnails/manifest.json` にsource URLと寸法・容量を記録。`src/lib/photo-thumbnails.ts` と一覧ページは静的ファイルを参照。利用手順は `docs/photo-thumbnails.md`。
+- 画像設定: sharpでEXIF回転、幅768px以下、縦横比保持、拡大なし、WebP品質80。現在の8枚を生成し、原本合計61,076,412 bytesから合計220,504 bytesへ圧縮（99.64%減）。原本ファイルは変更なし。
+- props・依存コンポーネントへの影響: `PhotoPost` と詳細モーダルのpropsは変更なし。追加依存はdevDependencyのsharp。
+- 影響するページ・表示バリエーション: `/photo`一覧、Desktop / Mobile詳細の元画像読み込み、写真一覧の失敗タイル。
+- 検証コマンド・結果: `npm run photos:thumbnails`・`npm run check:photo-thumbnails`・`npm run build:svelte` 成功。`node node_modules/@playwright/test/cli.js test photo-images.spec.ts` はDesktop一覧→詳細、Mobile詳細、初回サムネイル404の3/3成功。親Agentの独立確認では画像通信とスワイプが8/8成功、写真Visual比較も35/35成功。`npm run check` は既存clickToCopy.jsのimplicit anyエラー2件・既存警告23件で失敗、今回の追加エラーなし。`git diff --check` 成功。
+- Visual Diffの確認・baseline更新の有無: 初回比較で一覧9件に圧縮由来の差分。詳細page/modal/imageの背面にもぼかしたギャラリーが含まれるため、同じタイル差分が出ることを確認し、親Agentが意図した差分と確認。photo関連baseline35件を更新後、`npm run visual -- --grep 'page:photo(?: |-)'` は35/35成功。写真詳細の元画像表示領域自体は変わらず、背面のぼけたサムネイルが変化。
+- 未確認事項・残課題: Cloudflare Pagesの本番build/deployは未実施。未追跡の `content/photos/rot.md` は生成スクリプト対象外。詳細は `docs/photo-thumbnails.md`。
+- 関連コミット・PR: 未コミット。
+
 ### 2026-10-03 — 写真詳細の左右スワイプ切り替え
 
 - 状態: 検証済み
