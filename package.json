@@ -10,6 +10,7 @@
     "build:svelte": "npm run check:photo-thumbnails && vite build",
     "build:parse-data": "npx tsx ./scripts/PostDataPaser.ts",
     "photos:thumbnails": "node ./scripts/photo-thumbnails.mjs generate",
+    "photos:template": "node ./scripts/photo-template.mjs",
     "check:photo-thumbnails": "node ./scripts/photo-thumbnails.mjs check",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -17,6 +18,7 @@
     "lint": "prettier --plugin-search-dir . --check . && eslint .",
     "format": "prettier --plugin-search-dir . --write .",
     "visual": "playwright test",
+    "test:photos-template": "node --test ./tests/photo-template.test.mjs",
     "visual:update": "playwright test --update-snapshots=all",
     "visual:report": "playwright show-report .visual/report"
   },
@@ -34,6 +36,7 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.36.0",
+    "exifr": "^7.1.3",
     "globals": "^15.0.0",
     "prettier": "^3.1.1",
     "prettier-plugin-svelte": "^3.1.2",
