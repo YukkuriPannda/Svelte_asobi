@@ -136,3 +136,15 @@ npx playwright test tests/visual/photo-images.spec.ts
 - Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし（p = 0 では canvas を作らないため、初期表示は変わらない想定）。
 - 未確認事項・残課題: ブラウザ・実機での読み込み速度と見た目（解像度の低下が目立たないか）は未確認。サムネイルのない写真（`npm run photos:thumbnails` 未実行）は404でエフェクトなしにフォールバックする。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — ドットの間（背景）を透過できるようにする
+
+- 状態: 実装（型チェックのみ。Visual・ブラウザは未確認）
+- 目的・受け入れ条件: ドットレンダリングの背景（ドットの間の黒地）を透過できること。透過した部分から元写真が見えないこと。
+- 変更内容・対象ファイル: `HalftonePhoto.svelte` に定数 `TRANSPARENT_BACKGROUND`（true）と props `transparent`・`photo` を追加した。シェーダーのドットを乗算済みアルファ（a = 被覆率）で返すようにし、透過時はドット以外を alpha 0 にする。黒地（false）は従来と同じ出力。透過時は、`photo` に渡した要素に `mask-image`（`-webkit-` 付き）を設定し、エフェクトがかかった範囲を隠す。マスクは、シェーダーと同じ前線 `k(d) = clamp(smoothstep(x)/FADE)` から、下→上の linear-gradient として毎フレーム計算する。進み具合が 0 のとき、画像取得の失敗時、破棄時にはマスクを外す。`PhotoDetailModal-mobile.svelte` は `<img>` を `bind:this` して `photo` に渡す。
+- props・依存コンポーネントへの影響: `transparent`（既定 `TRANSPARENT_BACKGROUND` = true）と `photo`（省略可）を追加した。`photo` を渡さずに透過すると、ドットの間から元写真が見える。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細の p > 0 の状態。ドットの間から、モーダルの背後が見える。p = 0 は変わらない（canvas・マスクなし）。
+- 検証コマンド・結果: `npm run check`（Node v20.18.0）はエラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。今回追加したエラーはない。`npm run visual -- --grep 'component:(modal|image)$'` は `.visual/environment.mjs` の環境照合で停止した（Node v20.18.0。期待値は v25.4.0）。テストは未実行。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
+- 未確認事項・残課題: ブラウザ・実機での見た目は未確認（マスクの境界とクロスフェードのずれ、iOS Safari の `-webkit-mask-image`）。背後の色は呼び出し側の背景に依存する。
+- 関連コミット・PR: 未コミット。

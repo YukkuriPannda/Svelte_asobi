@@ -13,6 +13,8 @@
 	export const MIN_CELL_PX = 12;
 	/** 下→上へ進むかかり具合のグラデーション幅（写真の高さに対する比率） */
 	export const GRADIENT_WIDTH = 5;
+	/** true でドットの間を透過する（false は黒地）。透過時は photo に渡した元写真をエフェクト範囲だけマスクで隠す */
+	export const TRANSPARENT_BACKGROUND = true;
 </script>
 
 <script lang="ts">
@@ -29,10 +31,15 @@
 	export let maxCellPx = MAX_CELL_PX;
 	export let minCellPx = MIN_CELL_PX;
 	export let gradientWidth = GRADIENT_WIDTH;
+	export let transparent = TRANSPARENT_BACKGROUND;
+	/** 下に重なっている元写真。透過時、エフェクトがかかった範囲を mask-image で隠す */
+	export let photo: HTMLElement | undefined = undefined;
 
 	const LEVELS = 5; // セルサイズの段階数。隣接段階を混ぜて連続的に育てる
 	const MAX_TEXTURE_PX = 2048;
 	const SMOOTHING = 0.25;
+	const FADE = 0.05; // 原画からクロスフェードする範囲（シェーダーと同じ値）
+	const MASK_STEPS = 8;
 
 	const VERTEX_SHADER = `#version 300 es
 in vec2 a_pos;
@@ -48,14 +55,16 @@ uniform float u_minCell;
 uniform float u_maxCell;
 uniform float u_width;
 uniform float u_levels;
+uniform float u_transparent; // 1.0 でドットの間を透過する
 out vec4 outColor;
 
-const float FADE = 0.05; // 原画からクロスフェードする範囲
+const float FADE = ${FADE.toFixed(4)};
 const float ANGLE = 0.78539816; // 網点格子の傾き 45°
 
 float luminance(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
-vec3 halftone(vec2 p, float cell) {
+// 乗算済みアルファのドット（rgb = 色 × 被覆率、a = 被覆率）
+vec4 halftone(vec2 p, float cell) {
 	mat2 rot = mat2(cos(ANGLE), sin(ANGLE), -sin(ANGLE), cos(ANGLE));
 	vec2 q = rot * p / cell;
 	vec2 center = floor(q) + 0.5;
@@ -66,7 +75,8 @@ vec3 halftone(vec2 p, float cell) {
 	// 黒地に明るい所ほど大きいドット。最も明るい所でセルを埋める
 	float radius = 0.70710678 * cell * sqrt(luminance(color));
 	float dist = length(q - center) * cell;
-	return color * (1.0 - smoothstep(radius - 0.75, radius + 0.75, dist));
+	float coverage = 1.0 - smoothstep(radius - 0.75, radius + 0.75, dist);
+	return vec4(color * coverage, coverage);
 }
 
 void main() {
@@ -87,9 +97,10 @@ void main() {
 	float ratio = u_maxCell / u_minCell;
 	float cellA = u_minCell * pow(ratio, i / u_levels);
 	float cellB = u_minCell * pow(ratio, min(i + 1.0, u_levels) / u_levels);
-	vec3 color = mix(halftone(p, cellA), halftone(p, cellB), s - i);
+	vec4 dots = mix(halftone(p, cellA), halftone(p, cellB), s - i);
 	float k = clamp(e / FADE, 0.0, 1.0);
-	outColor = vec4(color * k, k);
+	// 黒地はセル全体を不透明にし、透過時はドットの被覆率だけを残す
+	outColor = vec4(dots.rgb, mix(1.0, dots.a, u_transparent)) * k;
 }`;
 
 	let canvas: HTMLCanvasElement | undefined;
@@ -111,7 +122,7 @@ void main() {
 	// エフェクトを使うまでは追加の画像取得もWebGL初期化もしない
 	$: if (target > 0 && !failed) activated = true;
 	$: if (activated && canvas && src !== loadedSrc) loadImage(src);
-	$: target, maxCellPx, minCellPx, gradientWidth, schedule();
+	$: target, maxCellPx, minCellPx, gradientWidth, transparent, photo, schedule();
 
 	function compile(context: WebGL2RenderingContext, type: number, source: string) {
 		const shader = context.createShader(type)!;
@@ -185,6 +196,7 @@ void main() {
 			console.warn('HalftonePhoto: effect disabled', error);
 			failed = true;
 			activated = false;
+			clearMask();
 		}
 	}
 
@@ -202,6 +214,42 @@ void main() {
 		if (shown !== target) schedule();
 	}
 
+	function smoothstep(x: number) {
+		const t = Math.min(Math.max(x, 0), 1);
+		return t * t * (3 - 2 * t);
+	}
+
+	function clearMask() {
+		photo?.style.removeProperty('mask-image');
+		photo?.style.removeProperty('-webkit-mask-image');
+	}
+
+	// シェーダーの k(d) と同じ前線で、元写真の不透明度 1 − k を下→上のグラデーションにする
+	function updateMask(boxHeight: number, rectBottom: number, rectHeight: number) {
+		if (!photo) return;
+		if (!transparent || shown <= 0) return clearMask();
+		const width = Math.max(gradientWidth, 0.001);
+		// smoothstep(x) = FADE となる x（ここで k が 1 になる）
+		let lo = 0;
+		let hi = 1;
+		for (let n = 0; n < 20; n++) {
+			const mid = (lo + hi) / 2;
+			if (smoothstep(mid) < FADE) lo = mid;
+			else hi = mid;
+		}
+		const stops: string[] = [];
+		for (let n = MASK_STEPS; n >= 0; n--) {
+			const x = (hi * n) / MASK_STEPS;
+			const d = shown * (1 + width) - x * width;
+			const k = Math.min(smoothstep(x) / FADE, 1);
+			const y = ((rectBottom + d * rectHeight) / boxHeight) * 100;
+			stops.push(`rgba(0, 0, 0, ${(1 - k).toFixed(3)}) ${y.toFixed(3)}%`);
+		}
+		const mask = `linear-gradient(to top, ${stops.join(', ')})`;
+		photo.style.setProperty('mask-image', mask);
+		photo.style.setProperty('-webkit-mask-image', mask);
+	}
+
 	function draw() {
 		if (!gl || !program || !canvas || !texture || !imageSize.width) return;
 		const dpr = window.devicePixelRatio || 1;
@@ -214,12 +262,14 @@ void main() {
 		gl.viewport(0, 0, width, height);
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-		if (shown <= 0) return;
 
 		// <img> の object-fit: contain と同じ表示領域
 		const fit = Math.min(width / imageSize.width, height / imageSize.height);
 		const rectWidth = imageSize.width * fit;
 		const rectHeight = imageSize.height * fit;
+		updateMask(height, (height - rectHeight) / 2, rectHeight);
+		if (shown <= 0) return;
+
 		const uniform = (name: string) => gl!.getUniformLocation(program!, name);
 		gl.uniform4f(uniform('u_rect'), (width - rectWidth) / 2, (height - rectHeight) / 2, rectWidth, rectHeight);
 		gl.uniform1f(uniform('u_texScale'), textureSize.width / rectWidth);
@@ -228,6 +278,7 @@ void main() {
 		gl.uniform1f(uniform('u_maxCell'), maxCellPx * dpr);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);
+		gl.uniform1f(uniform('u_transparent'), transparent ? 1 : 0);
 		gl.uniform1i(uniform('u_tex'), 0);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 	}
@@ -235,6 +286,7 @@ void main() {
 	onDestroy(() => {
 		if (frame) cancelAnimationFrame(frame);
 		resizeObserver?.disconnect();
+		clearMask();
 		gl?.getExtension('WEBGL_lose_context')?.loseContext();
 	});
 </script>
