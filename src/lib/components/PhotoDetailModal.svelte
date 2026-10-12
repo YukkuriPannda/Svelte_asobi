@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { photoPost, type PhotoPost } from '$lib/PostData';
 	import { onMount, onDestroy, beforeUpdate } from 'svelte';
+	import HalftonePhoto from './HalftonePhoto.svelte';
+	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 
 	let wheelY = 0;
 	export let id; // Replace with the actual ID you want to use
@@ -17,13 +19,16 @@
 		}
 	});
 
+	let photoImage: HTMLDivElement | undefined;
+
 	let currentState = 0;
 	const state1_wheelY = 300;
 	const state2_wheelY = 600;
 	const state3_wheelY = 900;
+	const WHEEL_MAX = state2_wheelY + 500;
 
 	function handleWheel(event: WheelEvent) {
-		if (wheelY + event.deltaY > 0 && (wheelY < state2_wheelY + 500 || event.deltaY < 0)) {
+		if (wheelY + event.deltaY > 0 && (wheelY < WHEEL_MAX || event.deltaY < 0)) {
 			wheelY += event.deltaY;
 		}
 
@@ -48,7 +53,11 @@
 	<div class="modalwindow">
 		<div class="modalcontent" on:wheel={handleWheel}>
 			<div class="photo state{currentState}">
-				<img src={post.img_path} alt="Photo" />
+				<div class="photoImage" bind:this={photoImage}>
+					<img src={post.img_path} alt="Photo" />
+				</div>
+				<!-- 開いた直後に一度だけドット化の入場演出を再生する（縮小版から描く） -->
+				<HalftonePhoto src={photoThumbnailUrl(post.id)} photo={photoImage} entrance />
 			</div>
 
 			<div class="detail state{currentState}">
@@ -207,9 +216,14 @@
 				}
 			}
 			.photo {
+				position: relative;
 				width: 100%;
 				height: 100%;
 				transition: width 0.5s ease-in-out;
+				.photoImage {
+					width: 100%;
+					height: 100%;
+				}
 				&.state1,
 				&.state2,
 				&.state3 {
