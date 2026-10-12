@@ -281,10 +281,6 @@
 		opacity: 1;
 		visibility: visible;
 		touch-action: pan-y;
-		transition:
-			opacity 0.3s ease-in-out,
-			visibility 0.3s ease-in-out,
-			background-color 0.3s ease-in-out;
 	}
 	.modal {
 		overflow: hidden;

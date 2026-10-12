@@ -46,13 +46,24 @@ for (const entry of manifest.pages) {
 					)
 				);
 			});
+			// 記事の目次は onMount で見出しから生成される。SSR直後の撮影で空の目次を固定しないよう、見出しがあれば目次の生成を待つ。
+			await page.waitForFunction(() => {
+				const toc = document.querySelector('.toc');
+				const hasHeadings = document.querySelector('#artic h1, #artic h2, #artic h3, #artic h4, #artic h5, #artic h6') !== null;
+				return !toc || !hasHeadings || toc.querySelector('li') !== null;
+			});
 			// External photo fixtures and local equipment images must decode.
 			const broken = await page.evaluate(() =>
 				Array.from(document.images)
-					.filter((img) =>
-						(img.src.startsWith('https://img.rhoknov.net/') ||
-							new URL(img.src).pathname.startsWith('/cameras/')) && !img.naturalWidth
-					)
+					.filter((img) => {
+						// src未指定・空のimgは対象外（README: 元から未指定の箇所はアプリの現状）。
+						if (!img.getAttribute('src')) return false;
+						return (
+							(img.src.startsWith('https://img.rhoknov.net/') ||
+								new URL(img.src).pathname.startsWith('/cameras/')) &&
+							!img.naturalWidth
+						);
+					})
 					.map((img) => img.src)
 			);
 			expect(broken).toEqual([]);

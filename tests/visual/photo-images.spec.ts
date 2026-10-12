@@ -30,6 +30,14 @@ async function installImageFixtures(context: BrowserContext, originalRequests: s
 	});
 }
 
+// 初回の dev server 表示では hydration 完了前に click が効かないことがあるため、モーダルが開くまで再試行する（開く操作は冪等）。
+async function openFirstPhoto(page: Page) {
+	await expect(async () => {
+		await page.locator('.photoPost button').first().click();
+		await expect(page.locator('.modal:not(.hide) .photo img')).toBeAttached({ timeout: 2000 });
+	}).toPass({ timeout: 30000 });
+}
+
 async function expectFullPhoto(page: Page, photo: (typeof photos)[number], originalRequests: string[]) {
 	await expect(page.locator('.modal:not(.hide) .photo img')).toHaveAttribute('src', photo.img_path);
 	await expect.poll(() => originalRequests.includes(photo.img_path)).toBe(true);
@@ -54,7 +62,7 @@ test('gallery requests thumbnails only; opening a desktop detail requests the or
 	}))).toBe(true);
 	await page.waitForLoadState('networkidle');
 	expect(originalRequests).toEqual([]);
-	await page.locator('.photoPost button').first().click();
+	await openFirstPhoto(page);
 	await expectFullPhoto(page, photos[0], originalRequests);
 });
 
@@ -76,7 +84,7 @@ test('opening a mobile detail requests the original photo', async ({ browser }) 
 	}))).toBe(true);
 	await page.waitForLoadState('networkidle');
 	expect(originalRequests).toEqual([]);
-	await page.locator('.photoPost button').first().click();
+	await openFirstPhoto(page);
 	await expectFullPhoto(page, photos[0], originalRequests);
 	await context.close();
 });

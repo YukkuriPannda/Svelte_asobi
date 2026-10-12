@@ -17,12 +17,13 @@
 | `photo`  | `tile-2`            | `[data-visual-id="photo-hikari_kage01"]`       |
 | `photo`  | `tile-3`            | `[data-visual-id="photo-kasa"]`                |
 | `photo`  | `tile-4`            | `[data-visual-id="photo-minimal_and_accent"]`  |
-| `photo`  | `tile-5`            | `[data-visual-id="photo-sonote"]`              |
-| `photo`  | `tile-6`            | `[data-visual-id="photo-ugoki_houkou01 copy"]` |
-| `photo`  | `tile-7`            | `[data-visual-id="photo-ugoki_houkou01"]`      |
+| `photo`  | `tile-5`            | `[data-visual-id="photo-rot"]`                 |
+| `photo`  | `tile-6`            | `[data-visual-id="photo-sonote"]`              |
+| `photo`  | `tile-7`            | `[data-visual-id="photo-ugoki_houkou01 copy"]` |
+| `photo`  | `tile-8`            | `[data-visual-id="photo-ugoki_houkou01"]`      |
 
 ```powershell
-npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|tile-5|tile-6|tile-7)$'
+npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|tile-5|tile-6|tile-7|tile-8)$'
 ```
 
 ## 記録の書き方
@@ -106,3 +107,32 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - 検証: 公開画像URLはHTTP 200、image/jpeg。既存作業プロセスのファイルロックを避けた一時コピーで、npm 9.6.7の `npm ci --no-audit --no-fund` 成功、修正後の `npm run build` 成功（Cloudflareアダプターを含む）。`npm run check` は既存clickToCopy.jsのimplicit anyエラー2件・警告23件で失敗。
 - 未確認: Cloudflare上の再デプロイ、ブラウザー表示、Visual比較は未実施。写真IDは既存コンテンツのため今回の追加ではない。
 - 関連コミット: 未コミット。
+
+### 2026-10-12 — Visual検証の環境移行とrotの追加（テストID・一覧tileの繰り下げ）
+
+- 状態: 検証済み
+- 目的・受け入れ条件: Visual環境を固定値（Node v25.4.0）に揃えて全baselineを再生成し、manifestのrot追加後も全件passすること。
+- 変更内容・対象ファイル: `.visual/manifest.json` に写真 `rot` を追加。一覧の `tile-5` を rot、旧 `tile-5〜7` を `tile-6〜8` へ繰り下げ（写真詳細IDも `photo-5-rot` 追加に伴い `photo-6-sonote` / `photo-7-ugoki_houkou01-copy` / `photo-8-ugoki_houkou01` へ繰り下げ）。`.visual/assets.json` と `.visual/assets/` に rot のfixture（IMG_3700.jpg）を追加。`tests/visual/visual.spec.ts`（src未指定imgの除外、目次生成の待機）と `tests/visual/photo-images.spec.ts`（モーダルが開くまでのclick再試行）を修正。`src/lib/generated/photo_output.json` は親が `npm run build:parse-data` で更新済み（rotの equipments `EF-50mm` と説明文）。
+- props・依存コンポーネントへの影響: props変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧（tile 9件）。
+- 検証コマンド・結果: worktree（HEAD + 上記変更）で `npm run visual:update` → `npm run visual` 全件 93/93 pass。メインで `npm run visual -- --grep 'component:(modal|image)$'` 18/18、`--grep 'page:photo-'` 27/27、全件 93/93 pass。
+- Visual Diffの確認・baseline更新の有無: 環境移行に伴い全baselineを再生成（HEAD環境とフォントハッシュが違うため）。目視で `photo-page.png`（一覧9件）、`photo-5-rot-modal.png`、`blog-TestBlog1-article.png`（目次あり）を確認。`blog-LimiT-toc.png` は目次生成前に撮影されて空になっていたため、目次の待機を入れて再生成。
+- 未確認事項・残課題: 物理端末・実ブラウザでの表示は未確認。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-13 — 写真モーダルの開閉フェードを削除
+
+- 状態: 検証済み（未コミット）
+- 目的・受け入れ条件: 写真モーダルの開閉を即時に切り替え、0.3秒のopacity / visibility / background-colorフェードをなくす。HalftonePhotoの入場演出（0.2秒）だけが見えること。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte` の `.modal` から `transition`（opacity / visibility / background-color 0.3s）を削除。`.modal :global(.modalwindow)` のスワイプ用translate transitionと `.hide` の状態定義は変更なし。
+- props・依存コンポーネントへの影響: props変更なし。`HalftonePhoto.svelte`・`PhotoDetailModal*.svelte` は未変更。
+- 影響するページ・表示バリエーション: `/photo` から開く写真詳細のDesktop / Mobileモーダルの開閉。全写真詳細URL。
+- 検証コマンド・結果: `npm run check` は既存のclickToCopy.jsのimplicit anyエラー2件・警告23件のみ（今回の追加エラーなし）。開発サーバー（vite dev、ポート5199）で Playwright（Chromium）を使い、CDP screencastでフレームを記録。
+  - Desktop 1440×900: 開いた直後から `.modal` のopacityは1、背景は `rgba(0, 0, 0, 0.75)` の最終値。約0.5秒後に写真の入場演出（ハーフトーン）を確認。閉じるクリック直後に `.modal.hide` は opacity 0 / visibility hidden / 背景透明となり、最初の撮影フレームでモーダルは消えている。
+  - Mobile 390×844（Android UA）: 開いた直後から背景は最終値。約0.37秒後に写真と入場演出の途中を確認、約0.56秒後に写真が表示。閉じた直後にモーダルは消えている。
+- Visual Diffの確認・baseline更新の有無: `npm run visual` は `.visual/environment.json` のフォント照合で止まるため未実行。baseline更新なし。
+- スクリーンショット: scratchpad の `nofade-*` 系。
+- 未確認事項・残課題:
+  - 背面ギャラリーのぼかし（`.body` の `filter: blur(3px) saturate(10%)`、`transition: filter 0.3s`）は残っており、開閉とも約0.3秒かけて変化する。今回の依頼範囲外のため未変更。ぼかしも即時にする場合は別途判断が必要。
+  - Desktopでは写真本体が表示されるのが開いた後約0.5秒。写真の読み込みに依存する既存の挙動で、今回は変更していない。
+  - 物理端末・Safari・iPadでの表示は未確認。

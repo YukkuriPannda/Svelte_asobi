@@ -162,16 +162,21 @@
 				},
 				{
 					"id": "tile-5",
-					"selector": "[data-visual-id=\"photo-sonote\"]",
+					"selector": "[data-visual-id=\"photo-rot\"]",
 					"source": "src/routes/photo/+page.svelte"
 				},
 				{
 					"id": "tile-6",
-					"selector": "[data-visual-id=\"photo-ugoki_houkou01 copy\"]",
+					"selector": "[data-visual-id=\"photo-sonote\"]",
 					"source": "src/routes/photo/+page.svelte"
 				},
 				{
 					"id": "tile-7",
+					"selector": "[data-visual-id=\"photo-ugoki_houkou01 copy\"]",
+					"source": "src/routes/photo/+page.svelte"
+				},
+				{
+					"id": "tile-8",
 					"selector": "[data-visual-id=\"photo-ugoki_houkou01\"]",
 					"source": "src/routes/photo/+page.svelte"
 				}
@@ -439,7 +444,27 @@
 			]
 		},
 		{
-			"id": "photo-5-sonote",
+			"id": "photo-5-rot",
+			"route": "/photo/[photo_id]",
+			"url": "/photo/rot",
+			"finalUrl": "/photo/",
+			"ready": ".modal:not(.hide) .modalwindow",
+			"state": "redirect to gallery, desktop modal initial state0",
+			"components": [
+				{
+					"id": "modal",
+					"selector": ".modal:not(.hide)",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				},
+				{
+					"id": "image",
+					"selector": ".modal:not(.hide) .photo",
+					"source": "src/lib/components/PhotoDetailModal.svelte"
+				}
+			]
+		},
+		{
+			"id": "photo-6-sonote",
 			"route": "/photo/[photo_id]",
 			"url": "/photo/sonote",
 			"finalUrl": "/photo/",
@@ -459,7 +484,7 @@
 			]
 		},
 		{
-			"id": "photo-6-ugoki_houkou01-copy",
+			"id": "photo-7-ugoki_houkou01-copy",
 			"route": "/photo/[photo_id]",
 			"url": "/photo/ugoki_houkou01%20copy",
 			"finalUrl": "/photo/",
@@ -479,7 +504,7 @@
 			]
 		},
 		{
-			"id": "photo-7-ugoki_houkou01",
+			"id": "photo-8-ugoki_houkou01",
 			"route": "/photo/[photo_id]",
 			"url": "/photo/ugoki_houkou01",
 			"finalUrl": "/photo/",
