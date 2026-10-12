@@ -2,6 +2,7 @@
 	import { photoPost, type PhotoPost } from '$lib/PostData';
 	import { onMount, onDestroy, beforeUpdate } from 'svelte';
 	import HalftonePhoto from './HalftonePhoto.svelte';
+	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 
 	let wheelY = 0;
 	export let id; // Replace with the actual ID you want to use
@@ -99,7 +100,8 @@
 		>
 			<div class="photo state">
 				<img src={post.img_path} alt="Photo" />
-				<HalftonePhoto src={post.img_path ?? ''} progress={effectProgress} />
+				<!-- ドット化は細部が残らないため、軽い一覧用サムネイルから描く -->
+				<HalftonePhoto src={photoThumbnailUrl(post.id)} progress={effectProgress} />
 			</div>
 
 			<div class="detail state">
@@ -150,6 +152,10 @@
 				/* 写真（sticky・100vh）の上に重ねる。冒頭は文章が画面の下に隠れている */
 				margin: -100vh 0px 0px;
 				padding: 100vh 0px 50px;
+				/* 本文が短くても、最後までスクロールするとタイトルが上端から20pxの位置まで来る高さにする。
+				   上余白 100vh + 本文 (100vh - 20px) + 下余白 50px */
+				box-sizing: border-box;
+				min-height: calc(200vh + 30px);
 				text-shadow:
 					0 0 6px rgba(0, 0, 0, 0.9),
 					0 0 2px #000;

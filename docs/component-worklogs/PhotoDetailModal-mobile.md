@@ -58,3 +58,27 @@ Desktopのbaselineは未登録。未実施の検証を成功として記録し�
 - Visual Diffの確認・baseline更新の有無: 差分なし。baseline更新なし。
 - 未確認事項・残課題: 実機のスマホ（iOS Safari・Android Chrome）での sticky とスクロールの挙動、タッチ量とのずれは未確認。`maxScroll` は scroll イベントでのみ更新する（従来どおり）。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — HalftonePhoto に一覧用サムネイルを渡す
+
+- 状態: 実装（型チェックのみ。Visual・ブラウザは未確認）
+- 目的・受け入れ条件: ハーフトーンの反映を速くすること。詳細は `HalftonePhoto.md` の同日の記録を参照。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte`。`HalftonePhoto` の `src` を `post.img_path ?? ''` から `photoThumbnailUrl(post.id)` に変更。表示用の `<img>` は元画像のまま。
+- props・依存コンポーネントへの影響: `$lib/photo-thumbnails` を新たに import。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細の p > 0 の状態。
+- 検証コマンド・結果: `npm run check`（Node v20.18.0）はエラー2件（既存の `clickToCopy.js` の implicit any）・警告23件で、今回追加したエラーはない。`npm run visual -- --grep 'component:(modal|image)$'` と `npx playwright test tests/visual/photo-images.spec.ts` は、この環境に Node v25.4.0 がないため未実行。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし（p = 0 では canvas を作らないため、初期表示は変わらない想定）。
+- 未確認事項・残課題: ブラウザ・実機での読み込み速度と見た目（解像度の低下が目立たないか）は未確認。サムネイルのない写真（`npm run photos:thumbnails` 未実行）は404でエフェクトなしにフォールバックする。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — 最後までスクロールするとタイトルが上端20pxまで来るようにする
+
+- 状態: 実装（型チェックとChromiumでの数値計測のみ。Visual・実機は未確認）
+- 目的・受け入れ条件: 最後までスクロールしたとき、タイトルと説明文がスクロール領域の上端から約20pxの位置まで上がること。本文が短く、画面が縦に長い端末ではタイトルが画面の中ほどで止まっていた。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte` の `.detail` に `box-sizing: border-box; min-height: calc(200vh + 30px)` を追加した（上余白 100vh + 本文 100vh − 20px + 下余白 50px）。このページでは全体の指定で `border-box` になっているため、余白を含む値で指定し、`box-sizing` も明示した。本文が長い場合は従来どおり、本文の最後まで読める位置までスクロールする（タイトルは画面の上へ抜ける）。
+- props・依存コンポーネントへの影響: なし。`HalftonePhoto` の進み具合は、スクロール量が増えた分だけ緩やかになる。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細の最大スクロール時。初期表示（scrollTop = 0）は変わらない。
+- 検証コマンド・結果: `npm run check` は既存の `clickToCopy.js` のエラー2件・警告23件のみ。`vite dev` と Playwright（Chromium、iPhone 13 相当、幅390px）の一時スクリプトで、高さ 664 / 844 / 1000px・gakusou / rot / gyokou の最大スクロール時のタイトル上端を測り、すべて 20px だった。変更前は 664px で 37〜77px、1000px で 373〜413px だった。Visualテストは Node v25.4.0 がないため未実行。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
+- 未確認事項・残課題: 実機（iOS Safariのアドレスバーの伸縮で `100vh` がずれる場合）は未確認。
+- 関連コミット・PR: 未コミット。

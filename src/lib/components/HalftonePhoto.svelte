@@ -4,7 +4,7 @@
 	// スクロールの進み具合 p（0〜1）からエフェクトのかかり具合への変換:
 	//   かかり具合 = EFFECT_EASING( clamp(p / EFFECT_END, 0, 1) )
 	/** イージング曲線。CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値（EASING_PRESETS か任意の値） */
-	export const EFFECT_EASING: CubicBezier = EASING_PRESETS.easeOutExpo;
+	export const EFFECT_EASING: CubicBezier = EASING_PRESETS.easeOut;
 	/** スクロール全体のうち、エフェクトが100%に達する地点（0〜1。0.6 なら冒頭から60%の地点で完了） */
 	export const EFFECT_END = 1;
 	/** 100%時のドット格子の大きさ（CSS px） */
@@ -150,10 +150,11 @@ void main() {
 		loadedSrc = url;
 		try {
 			if (!gl) setupGl(canvas!);
-			// 表示中の<img>とは別に、画素を読むためCORS付きで取得する。
-			// <img>がCORSなしで取得した応答（Vary: Origin なし）がブラウザにキャッシュされていると
-			// それが使い回されてCORSで弾かれるため、ブラウザキャッシュを通さずに取り直す。
-			const response = await fetch(url, { mode: 'cors', cache: 'reload' });
+			// 画素を読むためCORS付きで取得する。別オリジンの場合、<img>がCORSなしで取得した応答
+			// （Vary: Origin なし）がキャッシュされているとCORSで弾かれるため、キャッシュを通さずに取り直す。
+			// 同一オリジン（一覧用サムネイルなど）はキャッシュをそのまま使う。
+			const sameOrigin = new URL(url, location.href).origin === location.origin;
+			const response = await fetch(url, { mode: 'cors', cache: sameOrigin ? 'default' : 'reload' });
 			if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
 			const image = await createImageBitmap(await response.blob());
 			if (url !== loadedSrc || !gl) {

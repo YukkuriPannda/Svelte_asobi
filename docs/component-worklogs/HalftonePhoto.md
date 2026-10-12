@@ -124,3 +124,15 @@ npx playwright test tests/visual/photo-images.spec.ts
 - Visual Diffの確認・baseline更新の有無: 差分なし。baseline更新なし。
 - 未確認事項・残課題: 実機（iOS Safari・Android Chrome）でのタッチスクロールとsticky の挙動は未確認。`rot` の 0%・25%・75% は撮影のみで目視は未実施。`GRADIENT_WIDTH` が未コミットの変更で 5 になっている（記録の既定値 0.3 と異なる）。意図どおりか確認が必要。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — エフェクト用画像を一覧用サムネイルに変更
+
+- 状態: 実装（型チェックのみ。Visual・ブラウザは未確認）
+- 目的・受け入れ条件: ハーフトーンの反映が遅い問題を減らすこと。元画像（4〜12MB）を毎回キャッシュなしで取り直していたのが主因。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte` で `src` を `photoThumbnailUrl(post.id)`（`static/photo-thumbnails/<id>.webp`、長辺768px・20〜30KB程度、同一オリジン）に変更。`HalftonePhoto.svelte` は、同一オリジンのURLでは `cache: 'default'` で取得するようにした（一覧で読み込み済みのサムネイルをそのまま使う）。別オリジンは従来どおり `cache: 'reload'`。
+- props・依存コンポーネントへの影響: props の型は変更なし。`src` には同一オリジンかCORS許可済みのURLを渡す。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細の p > 0 の状態。
+- 検証コマンド・結果: `npm run check`（Node v20.18.0）はエラー2件（既存の `clickToCopy.js` の implicit any）・警告23件で、今回追加したエラーはない。`npm run visual -- --grep 'component:(modal|image)$'` と `npx playwright test tests/visual/photo-images.spec.ts` は、この環境に Node v25.4.0 がないため未実行。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし（p = 0 では canvas を作らないため、初期表示は変わらない想定）。
+- 未確認事項・残課題: ブラウザ・実機での読み込み速度と見た目（解像度の低下が目立たないか）は未確認。サムネイルのない写真（`npm run photos:thumbnails` 未実行）は404でエフェクトなしにフォールバックする。
+- 関連コミット・PR: 未コミット。
