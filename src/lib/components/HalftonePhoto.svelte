@@ -6,9 +6,9 @@
 	/** イージング曲線。CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値（EASING_PRESETS か任意の値） */
 	export const EFFECT_EASING: CubicBezier = EASING_PRESETS.easeOut;
 	/** スクロール全体のうち、エフェクトが100%に達する地点（0〜1。0.6 なら冒頭から60%の地点で完了） */
-	export const EFFECT_END = 1;
+	export const EFFECT_END = 0.7;
 	/** 100%時のドット格子の大きさ（CSS px） */
-	export const MAX_CELL_PX = 64;
+	export const MAX_CELL_PX = 16;
 	/** エフェクト開始直後のドット格子の大きさ（CSS px） */
 	export const MIN_CELL_PX = 12;
 	/** 下→上へ進むかかり具合のグラデーション幅（写真の高さに対する比率） */
@@ -20,7 +20,7 @@
 	/** キーカラーとみなす、2×2の残り3画素の平均との色差（Oklab の距離。白と黒の差が 1） */
 	export const KEY_THRESHOLD = 0.25;
 	/** 円の大きさ（格子に対する比率 0〜1）。1 で最も明るい所がセルを埋める。隣のセルとは重ならない */
-	export const DOT_SCALE = 1;
+	export const DOT_SCALE = 0.8;
 </script>
 
 <script lang="ts">
