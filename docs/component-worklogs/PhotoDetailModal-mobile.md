@@ -117,3 +117,19 @@ Desktopのbaselineは未登録。未実施の検証を成功として記録し�
 - Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
 - 未確認事項・残課題: 上限4pxは仮の値。画面の端がぼけて透けて見えないか、`blur` による描画負荷は未確認。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-13 — 開いた直後の入場演出（`entrance`）を追加
+
+- 状態: 検証済み（型チェック・Chromium での目視、既存 baseline の写真範囲との画素比較。Visual suite は環境照合で未実行）
+- 目的・受け入れ条件: 写真詳細を開いた直後に 0.2 秒の入場演出を再生すること。入場が終わってから、従来のスクロール連動（カラーハーフトーン・暗くする・ぼかす）に戻ること。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte` のみ。`HalftonePhoto` に `entrance` を渡した（それ以外は変更なし）。
+- props・依存コンポーネントへの影響: `HalftonePhoto` の `entrance`（既定 false）を使用。`strength` は入場中も 0 のままで、写真の暗さ・ぼかしは変わらない。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` の Mobile 写真詳細。開いた直後の 0.2 秒の演出。スクロール量 0 の状態は、入場後は従来と同じ原画表示。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: 既存の2件・警告23件のみ。
+  - Chromium（390×844、iPhone UA）での撮影 `mobile-0〜260ms.png`: 0 ms は写真が見えず、50 ms で上端にドット、100 ms で上側が原画・中央がドット、150〜200 ms で原画。詳細は [HalftonePhoto.md](HalftonePhoto.md) の同日の記録を参照。
+  - 撮影時の `strength` は 0 のまま（暗さ・ぼかしは入場中にかからない）。
+  - `npm run visual` の Mobile 系の確認は未実施（Visual suite は環境照合で停止。Mobile の manifest 対象もない）。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline 更新なし。
+- 未確認事項・残課題: 実機（iOS Safari の `100vh` と sticky の組み合わせ）での見え方。写真を縦にスクロールした直後に開いた場合は、入場後の表示が既存の描画とずれないかは未確認。
+- 関連コミット・PR: 未コミット。

@@ -117,6 +117,7 @@
 					src={photoThumbnailUrl(post.id)}
 					progress={effectProgress}
 					photo={photoImage}
+					entrance
 					bind:strength={effectStrength}
 				/>
 			</div>

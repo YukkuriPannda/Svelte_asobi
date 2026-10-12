@@ -199,3 +199,35 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 検証コマンド・結果: `npm run check` は既存のエラー2件・警告23件のみ。
 - 未確認事項・残課題: Visual・実機は未確認。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-13 — 画像の読み込み直後に一度だけ入場演出を再生する（`entrance`）
+
+- 状態: 検証済み（型チェック・Chromium での目視、既存 baseline の写真範囲との画素比較。Visual suite は環境照合で未実行）
+- 目的・受け入れ条件: 写真詳細を開いた直後に 0.2 秒、写真の上端から下端へ前線が進むこと。冒頭は格子 64px・円の大きさ 0 で写真は見えず、円が育つと同時に格子が細かくなり、最後は原画になること。`prefers-reduced-motion` では再生しないこと。
+- 変更内容・対象ファイル: `HalftonePhoto.svelte` のみ。
+  - props `entrance`（既定 false）を追加。true のとき、画像の読み込み成功後に一度だけ再生する。読み込み前は `photo` の原画を全面マスクで隠す（pending）。
+  - 定数（module script）: `ENTRANCE_DURATION_MS`（200）、`ENTRANCE_CELL_START_PX`（64）、`ENTRANCE_CELL_END_PX`（12）、`ENTRANCE_DOT_PX`（12、円の直径。格子の半分まで）、`ENTRANCE_GRADIENT_WIDTH`（1）、`ENTRANCE_REVEAL_START`（0.6）。
+  - 局所進行度 L = smoothstep(clamp((t × (1 + 幅) − 上端からの位置) / 幅))。格子は `64 × (12/64)^L`（対数的に細かく）。円の半径は `min(0.5 × 直径 × L, 0.5 × 格子)` に明るさの平方根をかける。ドットの不透明度は `1 − smoothstep(0.6, 1, L)` で、原画の不透明度（`photo` のマスク）はその補数。L = 1 で原画だけになる。
+  - 時間は `performance.now()` と rAF で進める。終わると通常のスクロール連動の処理へ戻る（演出中のスクロール値は使わない）。
+  - シェーダーの `halftone()` は最大半径を引数で受けるように変えた。既存のスクロール側は `0.70710678 × cell × u_dotScale` を渡し、従来と同じ式になる。
+- props・依存コンポーネントへの影響: `entrance` を追加（省略可、既定 false で従来と同じ）。`progress`・`strength`・`transparent`・`photo` の既存の動きは変えていない。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` の PC（`PhotoDetailModal.svelte`）と Mobile（`PhotoDetailModal-mobile.svelte`）で、モーダルを開いた直後。Mobile のスクロール演出は、入場が終わるまで描画に反映されない。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。今回追加したエラー・警告はない。
+  - Chromium（Playwright 1.56.1 の同梱版、`/photo` から写真を開く、`performance.now` を一時的な仮想時計に差し替え。リポジトリには残していない）で、PC 1440×900 と Mobile 390×844（iPhone UA）を 0 / 50 / 100 / 150 / 200 / 260 ms で撮影。スクリーンショットは scratchpad の `pc-*ms.png` / `mobile-*ms.png`。
+    - 0 ms: 写真は見えない（モーダルの黒い背景とギャラリーだけ）。
+    - 50 ms: 写真の上端付近に小さなドットが現れる。
+    - 100 ms: 上側は原画、中央付近はドット、下側はまだ隠れている。
+    - 150 ms: 下端の一部だけドットが残る。
+    - 200 ms 以降: 原画のみ（以降の 260 ms も同じ）。
+  - 読み込み後に `prefers-reduced-motion: reduce` で開くと、canvas もマスクも作られず、写真がそのまま見える（`reduce.cjs` で確認）。
+  - 既存 baseline（`photo-0-gakusou-image.png` と `photo-5-rot-image.png`）と、撮影した `.modal:not(.hide) .photo` を比べた。写真の範囲（画面の y = 250〜650）の画素差は 0。ギャラリーの背景は直接読み込みの状態の差で、今回の変更とは無関係。
+  - `npm run visual -- --grep 'component:(modal|image)$'`: 環境照合で停止（`.visual/environment.json` の `fontsSha256` が、このマシンの Windows フォントと一致しない）。`.visual/environment.json` は変更していない。
+- Visual Diffの確認・baseline更新の有無: Playwright の差分確認は未実施。baseline は更新していない。上の画素比較は参考値。
+- 未確認事項・残課題:
+  - 実機・Safari・実 GPU での描画は未確認。WebGL2 が使えない環境では従来どおり原画を表示する（`failed` 経路）。ただし読み込み待ちの間は原画を隠すため、失敗時は `clearMask` で表示を戻す。
+  - 「円の大きさ 0 → 約 12px」を直径 12px（CSS px）として解釈した。半径としての解釈なら `ENTRANCE_DOT_PX` を 24 にする。
+  - `ENTRANCE_GRADIENT_WIDTH`（1）、格子の終点（12px）、`ENTRANCE_REVEAL_START`（0.6）は目視での仮の値。
+  - 入場 0.2 秒と、`.modal` の opacity（0.3 秒のフェード）が重なる。
+  - 写真の切り替え（スワイプ・矢印）では `{#key open_photo_id}` によりコンポーネントが作り直されるため、切り替えごとに入場演出が再生される。
+- 関連コミット・PR: 未コミット。

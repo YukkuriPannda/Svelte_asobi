@@ -21,12 +21,31 @@
 	export const KEY_THRESHOLD = 0.25;
 	/** 円の大きさ（格子に対する比率 0〜1）。1 で最も明るい所がセルを埋める。隣のセルとは重ならない */
 	export const DOT_SCALE = 0.8;
+
+	// 入場演出（entrance を true にしたとき、画像の読み込み直後に一度だけ再生する）。
+	// 写真の上端から下端へ前線が進み、各行の局所進行度 L（0〜1）で格子・円・原画への切り替えを決める。
+	/** 入場演出の長さ（ms） */
+	export const ENTRANCE_DURATION_MS = 500;
+	/** 入場演出の開始時の格子の大きさ（CSS px）。L = 0 の行の格子 */
+	export const ENTRANCE_CELL_START_PX = 64;
+	/** 入場演出の終了時の格子の大きさ（CSS px）。L = 1 の行の格子。格子は対数的に細かくなる */
+	export const ENTRANCE_CELL_END_PX = 12;
+	/** 入場演出の円の直径（CSS px）。L = 1 で最も明るい所の直径がこの値になる（格子を超えない） */
+	export const ENTRANCE_DOT_PX = 12;
+	/** 入場演出の前線の幅（写真の高さに対する比率）。小さいほど前線がはっきりし、大きいほど上から下へ緩やかに進む */
+	export const ENTRANCE_GRADIENT_WIDTH = 1;
+	/** 局所進行度 L がこの値を超えると、ドットの不透明度が下がり、原画が見えてくる（L = 1 で原画だけになる） */
+	export const ENTRANCE_REVEAL_START = 0.6;
+	/** 入場演出の原画のマスクを求める位置の数（写真の高さの分割数） */
+	const ENTRANCE_MASK_STEPS = 24;
+	/** 入場演出の読み込み待ちの間、原画を隠しておくマスク（全面透明） */
+	const HIDDEN_MASK = 'linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0))';
 </script>
 
 <script lang="ts">
 	// object-fit: contain の写真に重ねるカラーハーフトーンの描画レイヤー。
 	// 配置の基準になる親（position: relative / sticky の .photo）全体を覆い、progress が 0 の間は何も描かない。
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { cubicBezier } from '$lib/cubicBezier';
 
 	export let src: string;
@@ -43,6 +62,8 @@
 	export let photo: HTMLElement | undefined = undefined;
 	/** 読み取り専用。実際に描いているエフェクトの強さ（0〜1）。bind:strength で受け取る */
 	export let strength = 0;
+	/** true なら、画像の読み込み直後に入場演出を一度だけ再生する（progress とは独立。入場中はスクロール連動を描かない） */
+	export let entrance = false;
 
 	const LEVELS = 5; // セルサイズの段階数。隣接段階を混ぜて連続的に育てる
 	const MAX_TEXTURE_PX = 2048;
@@ -67,10 +88,16 @@ uniform float u_levels;
 uniform float u_transparent; // 1.0 でドットの間を透過する
 uniform float u_dotScale; // 円の大きさ（格子に対する比率 0〜1）
 uniform float u_maxLod;
+uniform float u_entrance; // 1.0 で入場演出（u_progress は演出の時間 0〜1 として使う）
+uniform float u_entranceCoarse; // 入場演出の開始時の格子（device px）
+uniform float u_entranceFine; // 入場演出の終了時の格子（device px）
+uniform float u_entranceDot; // 入場演出の円の直径（device px）
+uniform float u_entranceWidth; // 入場演出の前線の幅
 out vec4 outColor;
 
 const float FADE = ${FADE.toFixed(4)};
 const float ANGLE = 0.78539816; // 網点格子の傾き 45°
+const float ENTRANCE_REVEAL = ${ENTRANCE_REVEAL_START.toFixed(4)};
 
 float luminance(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
@@ -92,7 +119,8 @@ vec3 cellColor(vec2 uv, float lod) {
 }
 
 // 乗算済みアルファのドット（rgb = 色 × 被覆率、a = 被覆率）
-vec4 halftone(vec2 p, float cell) {
+// maxRadius は最も明るい所の円の半径
+vec4 halftone(vec2 p, float cell, float maxRadius) {
 	mat2 rot = mat2(cos(ANGLE), sin(ANGLE), -sin(ANGLE), cos(ANGLE));
 	vec2 q = rot * p / cell;
 	vec2 center = floor(q) + 0.5;
@@ -100,8 +128,8 @@ vec4 halftone(vec2 p, float cell) {
 	vec2 uv = clamp(vec2(centerPx.x / u_rect.z, 1.0 - centerPx.y / u_rect.w), 0.0, 1.0);
 	float lod = log2(max(cell * u_texScale * 0.5, 1.0));
 	vec3 color = cellColor(uv, lod);
-	// 黒地に明るい所ほど大きいドット。最も明るい所でセルを埋める
-	float radius = 0.70710678 * cell * u_dotScale * sqrt(luminance(color));
+	// 黒地に明るい所ほど大きいドット
+	float radius = maxRadius * sqrt(luminance(color));
 	float dist = length(q - center) * cell;
 	float coverage = 1.0 - smoothstep(radius - 0.75, radius + 0.75, dist);
 	return vec4(color * coverage, coverage);
@@ -111,6 +139,22 @@ void main() {
 	vec2 p = gl_FragCoord.xy - u_rect.xy;
 	if (any(lessThan(p, vec2(0.0))) || any(greaterThanEqual(p, u_rect.zw))) {
 		outColor = vec4(0.0);
+		return;
+	}
+	if (u_entrance > 0.5) {
+		// 入場演出: 上端 pos=0 から下端 pos=1 へ前線が進む。局所進行度 L で格子を粗い方から細かくし、円を 0 から大きくする。
+		// 原画の見せる割合は smoothstep(ENTRANCE_REVEAL, 1, L)。ドットはその残り（1 - 原画）で消していく。
+		float pos = 1.0 - p.y / u_rect.w;
+		float L = smoothstep(0.0, 1.0, (u_progress * (1.0 + u_entranceWidth) - pos) / u_entranceWidth);
+		float fade = 1.0 - smoothstep(ENTRANCE_REVEAL, 1.0, L);
+		if (L <= 0.0 || fade <= 0.0) {
+			outColor = vec4(0.0);
+			return;
+		}
+		float cell = u_entranceCoarse * pow(u_entranceFine / u_entranceCoarse, L);
+		// 円は格子を超えない（半径は格子の半分まで）
+		vec4 entranceDots = halftone(p, cell, min(0.5 * u_entranceDot * L, 0.5 * cell));
+		outColor = entranceDots * fade;
 		return;
 	}
 	// 下端 d=0 から上端 d=1 へ前線が進む
@@ -125,7 +169,11 @@ void main() {
 	float ratio = u_maxCell / u_minCell;
 	float cellA = u_minCell * pow(ratio, i / u_levels);
 	float cellB = u_minCell * pow(ratio, min(i + 1.0, u_levels) / u_levels);
-	vec4 dots = mix(halftone(p, cellA), halftone(p, cellB), s - i);
+	vec4 dots = mix(
+		halftone(p, cellA, 0.70710678 * cellA * u_dotScale),
+		halftone(p, cellB, 0.70710678 * cellB * u_dotScale),
+		s - i
+	);
 	float k = clamp(e / FADE, 0.0, 1.0);
 	// 黒地はセル全体を不透明にし、透過時はドットの被覆率だけを残す
 	outColor = vec4(dots.rgb, mix(1.0, dots.a, u_transparent)) * k;
@@ -144,6 +192,10 @@ void main() {
 	let shown = 0;
 	let frame = 0;
 	let resizeObserver: ResizeObserver | undefined;
+	// 入場演出: pending は画像の読み込み待ち（原画は隠す）、running は再生中、done 以降は通常の表示
+	let entranceStatus: 'idle' | 'pending' | 'running' | 'done' = 'idle';
+	let entranceStart = 0;
+	let entranceT = 0; // 入場演出の進み具合（0〜1）
 
 	$: ease = cubicBezier(easing);
 	$: target = ease(Math.min(Math.max(progress / Math.max(end, 0.001), 0), 1));
@@ -152,6 +204,15 @@ void main() {
 	$: if (target > 0 && !failed) activated = true;
 	$: if (activated && canvas && src !== loadedSrc) loadImage(src);
 	$: target, maxCellPx, minCellPx, gradientWidth, transparent, dotScale, photo, schedule();
+	// 読み込みを待つ間は原画を隠し、読み込みが終わってから入場演出を始める
+	$: if (entranceStatus === 'pending' && photo) setPhotoMask(HIDDEN_MASK);
+
+	onMount(() => {
+		if (entrance && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			entranceStatus = 'pending';
+			activated = true;
+		}
+	});
 
 	function compile(context: WebGL2RenderingContext, type: number, source: string) {
 		const shader = context.createShader(type)!;
@@ -176,7 +237,11 @@ void main() {
 		context.useProgram(linked);
 		const buffer = context.createBuffer();
 		context.bindBuffer(context.ARRAY_BUFFER, buffer);
-		context.bufferData(context.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), context.STATIC_DRAW);
+		context.bufferData(
+			context.ARRAY_BUFFER,
+			new Float32Array([-1, -1, 3, -1, -1, 3]),
+			context.STATIC_DRAW
+		);
 		const position = context.getAttribLocation(linked, 'a_pos');
 		context.enableVertexAttribArray(position);
 		context.vertexAttribPointer(position, 2, context.FLOAT, false, 0, 0);
@@ -254,12 +319,20 @@ void main() {
 						next[target + c] =
 							keyness[best] > threshold
 								? pixels[best * 4 + c]
-								: Math.round((pixels[block[0] * 4 + c] + pixels[block[1] * 4 + c] + pixels[block[2] * 4 + c] + pixels[block[3] * 4 + c]) / 4);
+								: Math.round(
+										(pixels[block[0] * 4 + c] +
+											pixels[block[1] * 4 + c] +
+											pixels[block[2] * 4 + c] +
+											pixels[block[3] * 4 + c]) /
+											4
+									);
 					}
 				}
 			}
 			for (let n = 0; n < width * height; n++) {
-				pixels[n * 4 + 3] = Number.isFinite(threshold) ? Math.min(255, Math.round((keyness[n] / (2 * threshold)) * 255)) : 0;
+				pixels[n * 4 + 3] = Number.isFinite(threshold)
+					? Math.min(255, Math.round((keyness[n] / (2 * threshold)) * 255))
+					: 0;
 			}
 			levels.push({ width, height, pixels });
 			if (width === 1 && height === 1) return levels;
@@ -292,7 +365,11 @@ void main() {
 			const context = resized.getContext('2d', { willReadFrequently: true })!;
 			context.drawImage(image, 0, 0, resized.width, resized.height);
 			// 縮小段階は自前で作り、キーカラーの情報をアルファに入れて転送する
-			const levels = buildLevels(context.getImageData(0, 0, resized.width, resized.height).data, resized.width, resized.height);
+			const levels = buildLevels(
+				context.getImageData(0, 0, resized.width, resized.height).data,
+				resized.width,
+				resized.height
+			);
 
 			if (!texture) texture = gl.createTexture();
 			gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -301,7 +378,17 @@ void main() {
 			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 			levels.forEach((level, lod) => {
-				gl!.texImage2D(gl!.TEXTURE_2D, lod, gl!.RGBA, level.width, level.height, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, level.pixels);
+				gl!.texImage2D(
+					gl!.TEXTURE_2D,
+					lod,
+					gl!.RGBA,
+					level.width,
+					level.height,
+					0,
+					gl!.RGBA,
+					gl!.UNSIGNED_BYTE,
+					level.pixels
+				);
 			});
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, levels.length - 1);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
@@ -312,12 +399,19 @@ void main() {
 			imageSize = { width: image.width, height: image.height };
 			image.close();
 			textureSize = { width: resized.width, height: resized.height };
+			if (entranceStatus === 'pending') {
+				entranceStatus = 'running';
+				entranceStart = performance.now();
+				entranceT = 0;
+				schedule();
+			}
 			draw();
 		} catch (error) {
 			// 取得・WebGLに失敗した場合は元の<img>表示のままにする
 			console.warn('HalftonePhoto: effect disabled', error);
 			failed = true;
 			activated = false;
+			entranceStatus = 'done';
 			clearMask();
 		}
 	}
@@ -329,6 +423,14 @@ void main() {
 
 	function step() {
 		frame = 0;
+		if (entranceStatus === 'running') {
+			entranceT = Math.min((performance.now() - entranceStart) / ENTRANCE_DURATION_MS, 1);
+			if (entranceT >= 1) entranceStatus = 'done';
+			draw();
+			// 演出中はスクロールの値を使わない。終わったらその時点の進み具合へ戻すため、続けて1回流す
+			schedule();
+			return;
+		}
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		shown = reduceMotion ? target : shown + (target - shown) * SMOOTHING;
 		if (Math.abs(target - shown) < 0.001) shown = target;
@@ -345,6 +447,38 @@ void main() {
 	function clearMask() {
 		photo?.style.removeProperty('mask-image');
 		photo?.style.removeProperty('-webkit-mask-image');
+	}
+
+	function setPhotoMask(mask: string) {
+		photo?.style.setProperty('mask-image', mask);
+		photo?.style.setProperty('-webkit-mask-image', mask);
+	}
+
+	// 入場演出の局所進行度 L（シェーダーと同じ式）から、原画の不透明度（smoothstep(REVEAL, 1, L)）を求める
+	function entranceReveal(pos: number, time: number) {
+		const x = Math.min(
+			Math.max((time * (1 + ENTRANCE_GRADIENT_WIDTH) - pos) / ENTRANCE_GRADIENT_WIDTH, 0),
+			1
+		);
+		const local = smoothstep(x);
+		return smoothstep((local - ENTRANCE_REVEAL_START) / (1 - ENTRANCE_REVEAL_START));
+	}
+
+	// 入場演出中の原画のマスク。上端 pos=0 から下端 pos=1 へ、ドットの後ろで原画を見せる
+	function updateEntranceMask(
+		boxHeight: number,
+		rectBottom: number,
+		rectHeight: number,
+		time: number
+	) {
+		if (!photo) return;
+		const stops: string[] = [];
+		for (let n = 0; n <= ENTRANCE_MASK_STEPS; n++) {
+			const d = n / ENTRANCE_MASK_STEPS; // 下端 0 から上端 1
+			const y = ((rectBottom + d * rectHeight) / boxHeight) * 100;
+			stops.push(`rgba(0, 0, 0, ${entranceReveal(1 - d, time).toFixed(3)}) ${y.toFixed(3)}%`);
+		}
+		setPhotoMask(`linear-gradient(to top, ${stops.join(', ')})`);
 	}
 
 	// シェーダーの k(d) と同じ前線で、元写真の不透明度 1 − k を下→上のグラデーションにする
@@ -390,13 +524,26 @@ void main() {
 		const fit = Math.min(width / imageSize.width, height / imageSize.height);
 		const rectWidth = imageSize.width * fit;
 		const rectHeight = imageSize.height * fit;
-		updateMask(height, (height - rectHeight) / 2, rectHeight);
-		if (shown <= 0) return;
+		const entering = entranceStatus === 'running';
+		if (entering) updateEntranceMask(height, (height - rectHeight) / 2, rectHeight, entranceT);
+		else updateMask(height, (height - rectHeight) / 2, rectHeight);
+		if (!entering && shown <= 0) return;
 
 		const uniform = (name: string) => gl!.getUniformLocation(program!, name);
-		gl.uniform4f(uniform('u_rect'), (width - rectWidth) / 2, (height - rectHeight) / 2, rectWidth, rectHeight);
+		gl.uniform4f(
+			uniform('u_rect'),
+			(width - rectWidth) / 2,
+			(height - rectHeight) / 2,
+			rectWidth,
+			rectHeight
+		);
 		gl.uniform1f(uniform('u_texScale'), textureSize.width / rectWidth);
-		gl.uniform1f(uniform('u_progress'), shown);
+		gl.uniform1f(uniform('u_progress'), entering ? entranceT : shown);
+		gl.uniform1f(uniform('u_entrance'), entering ? 1 : 0);
+		gl.uniform1f(uniform('u_entranceCoarse'), ENTRANCE_CELL_START_PX * dpr);
+		gl.uniform1f(uniform('u_entranceFine'), ENTRANCE_CELL_END_PX * dpr);
+		gl.uniform1f(uniform('u_entranceDot'), ENTRANCE_DOT_PX * dpr);
+		gl.uniform1f(uniform('u_entranceWidth'), ENTRANCE_GRADIENT_WIDTH);
 		gl.uniform1f(uniform('u_minCell'), minCellPx * dpr);
 		gl.uniform1f(uniform('u_maxCell'), maxCellPx * dpr);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
