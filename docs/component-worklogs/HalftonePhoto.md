@@ -3,14 +3,15 @@
 ## 対象
 
 - ソース: `src/lib/components/HalftonePhoto.svelte`
-- 使用コンポーネント: `PhotoDetailModal`（Desktop）、`PhotoDetailModal-mobile`（Mobile）
+- 使用コンポーネント: `PhotoDetailModal-mobile`（Mobileのみ。Desktopの `PhotoDetailModal` からは外した）
 - 使用route: `/photo/[photo_id]`（写真詳細モーダル。`/photo` 一覧からの遷移先）
 
 ## エフェクトの定義
 
 - カラーハーフトーン: 黒地に元写真の色の丸ドットを描く。明るい所ほどドットが大きい（半径 = 0.707×セル×√輝度）。格子は45°。
 - ドットが育つ: セルサイズを 2px（`MIN_CELL_PX`）から `MAX_CELL_PX`（12px、変数）まで5段階で補間し、連続的に育てる。進み具合 e が 0.05 未満の範囲では原画からクロスフェードする。
-- 進み具合: `p = clamp(wheelY/1100)`（Desktop）。Mobileは `.modalcontent` のスクロール率 `scrollTop / (scrollHeight - clientHeight)` を使い、スクロールできない場合は `clamp(wheelY/1100)` にフォールバックする。
+- 進み具合: `p = .modalcontent` のスクロール率 `scrollTop / (scrollHeight - clientHeight)`（0〜1）。スクロールできない場合は 0。
+- スクロールとの対応: `かかり具合 = EFFECT_EASING(clamp(p / EFFECT_END, 0, 1))`。`EFFECT_EASING` は CSS の `cubic-bezier(x1, y1, x2, y2)` と同じ4値で、`src/lib/cubicBezier.ts` の `EASING_PRESETS`（linear / ease / easeIn / easeOut / easeInOut / easeOutExpo）か任意の値を指定する。`EFFECT_END` は、スクロール全体のうちエフェクトが100%に達する地点（0〜1）。現在の設定は easeOutExpo（`[0.16, 1, 0.3, 1]`）・1。
 - かかり具合のグラデーション: 下から上へ前線が進む。`e(y) = smoothstep((p(1+w) − d) / w)`。`d` は下端0・上端1の位置、`w` は `GRADIENT_WIDTH`（0.3）。
 - p = 0 では従来の `<img>` のみを表示する。canvasを作らず、追加の画像通信も行わない。
 - 画像は `img.rhoknov.net`（Cloudflare）から取得する。このホストはCORS設定済み（2026-10-12 GETで `Access-Control-Allow-Origin` を確認。HEADでは返らない）。
@@ -25,8 +26,10 @@
 | `maxCellPx` | `number` | `MAX_CELL_PX`（12） | 100%時のドット格子の大きさ（CSS px） |
 | `minCellPx` | `number` | `MIN_CELL_PX`（2） | 開始直後のドット格子の大きさ（CSS px） |
 | `gradientWidth` | `number` | `GRADIENT_WIDTH`（0.3） | かかり具合のグラデーション幅 |
+| `easing` | `CubicBezier` | `EFFECT_EASING`（easeOutExpo） | スクロールに対するイージング曲線（cubic-bezier の4値） |
+| `end` | `number` | `EFFECT_END`（1） | エフェクトが100%に達するスクロール地点（0〜1） |
 
-親要素は `position: relative` である必要がある（`.photo` で設定済み）。canvasは親を `position: absolute; inset: 0` で覆い、object-fit: contain の写真領域に合わせて描く。
+親要素は `position: relative` または `sticky` である必要がある（Mobileの `.photo` は sticky）。canvasは親を `position: absolute; inset: 0` で覆い、object-fit: contain の写真領域に合わせて描く。
 
 ## 使用時の注意
 
@@ -75,4 +78,49 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 検証コマンド・結果: 実装担当（Haiku 5.5）が実施した。`npm run visual` 全件 93 passed（修正後に再実行）。一時スクリプト（リポジトリ外）で、Desktop 1440×900（gakusou・rot）の 0 / 約27 / 約55 / 100% と、Mobile 390×844（gakusou）の 50 / 100% を撮影した。canvasが生成され、Consoleに `HalftonePhoto: effect disabled` が出ないことを確認した。親Agentも撮影画像を目視し、下から上へのグラデーション、45°格子、明るい所ほど大きいドットを確認した。
 - Visual Diffの確認・baseline更新の有無: p = 0 のbaselineに差分はなく、更新なし。
 - 未確認事項・残課題: 実機・Safari・実GPUでの描画は未確認。WebGL2が使えない場合のフォールバックも未確認。Mobileの100%は写真が画面外にあるため、視認できない。ユーザー環境での修正後の再確認は未実施。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — スクロールに対する変化をイージングと終点で定義できるようにする
+
+- 状態: 検証済み（自動テストと数値確認のみ。ブラウザでの見た目は未確認）
+- 目的・受け入れ条件: スクロールに対するエフェクトの変化を、イージング曲線（cubic-bezier の4値）と、冒頭から何%の地点で完了するか、の2つの値で定義できること。既定値では変更前と同じ動きになること。
+- 変更内容・対象ファイル: `src/lib/cubicBezier.ts` を新規作成した（`CubicBezier` 型、`EASING_PRESETS`、CSS と同じ解き方の `cubicBezier()`）。`HalftonePhoto.svelte` に定数 `EFFECT_EASING`・`EFFECT_END` と props `easing`・`end` を追加し、`progress` を変換した値でスムージングと描画を行うようにした。
+- props・依存コンポーネントへの影響: props `easing`・`end` を追加した（省略可）。呼び出し側（PhotoDetailModal・PhotoDetailModal-mobile）は変更していない。PC版・スマホ版とも、定数で指定した値が使われる。
+- 影響するページ・表示バリエーション: 写真詳細モーダルの p > 0 の状態。既定値は linear・1 なので、見た目は変わらない。
+- 検証コマンド・結果:
+  - `npm run check`: 既存の `clickToCopy.js` の2件のみで、今回追加したエラーはない。
+  - `npx tsx` で `cubicBezier` の値を確認した。ease(0.5)=0.8024、easeInOut(0.25)=0.1292、easeInOut(0.5)=0.5000、linear(0.3)=0.3000 で、CSS の値と一致した。
+  - `npm run visual -- --grep 'component:(modal|image)$'`（Node v25.4.0）: 18 passed。
+- Visual Diffの確認・baseline更新の有無: 差分なし。更新なし。
+- 未確認事項・残課題: 既定値以外（例: easeInOut・0.6）の見た目は、ブラウザでは未確認。y が 0〜1 を超える曲線（オーバーシュート）では、かかり具合が 1 を超える。その場合は描画側で飽和するだけで、ドットが逆に戻る動きにはならない。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — スクロールに対するイージングを easeOutExpo にする
+
+- 状態: 実装（自動テストのみ。ブラウザでの見た目は未確認）
+- 目的・受け入れ条件: ユーザーの指定により、スクロールに対するエフェクトの変化を easeOutExpo にすること。
+- 変更内容・対象ファイル: `src/lib/cubicBezier.ts` の `EASING_PRESETS` に `easeOutExpo: [0.16, 1, 0.3, 1]`（easings.net の cubic-bezier 近似）を追加した。`HalftonePhoto.svelte` の `EFFECT_EASING` を `EASING_PRESETS.easeOutExpo` に変更した。`EFFECT_END` は 1 のまま。
+- props・依存コンポーネントへの影響: なし（既定値の変更のみ）。
+- 影響するページ・表示バリエーション: 写真詳細モーダルの p > 0 の状態。スクロールの序盤で急にかかり、終盤はゆっくり100%に近づく。p = 0 は変わらない。
+- 検証コマンド・結果: `npm run check` は既存の `clickToCopy.js` の2件のみ。`cubicBezier(easeOutExpo)` の値: 0.05→0.281、0.1→0.494、0.25→0.826、0.5→0.972、0.75→0.998。
+- Visual Diffの確認・baseline更新の有無: p = 0 のbaselineは対象外の変更のため、更新なし。
+- 未確認事項・残課題: ブラウザでの見た目は未確認。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — モバイル限定化・文章を写真の上に重ねる表示（sticky）
+
+- 状態: 検証済み（Visualの自動テストと Chromium での撮影。実機・Safari・実GPUは未確認）
+- 目的・受け入れ条件: エフェクトをモバイルだけにし、PCでは行わないこと。モバイルでは写真を上端に固定し、文章がドット化した写真の上にせり上がって重なること。冒頭は写真だけが見え、100%で写真全体がドット化していること。
+- 変更内容・対象ファイル: `PhotoDetailModal.svelte` から HalftonePhoto の import・配置と `effectProgress` を外した（呼び出しは Mobile のみ）。`PhotoDetailModal-mobile.svelte` の `.photo` を `position: sticky; top: 0` にし、進み具合を実スクロール率のみにした（wheelY フォールバック削除）。`HalftonePhoto.svelte` はコメント文言のみ変更（コード・定数値は未変更。ユーザーの未コミット値 MAX_CELL_PX=64、MIN_CELL_PX=12、easeOutExpo を保持）。
+- props・依存コンポーネントへの影響: HalftonePhoto の props は変更なし。呼び出し側は Mobile の1箇所のみ。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細。PCの写真詳細はエフェクトなし（baseline の初期表示と同じ）。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（`clickToCopy.js` の implicit any、既存）、警告23件。今回追加のエラーなし。
+  - `npm run visual -- --grep 'component:(modal|image)$'`: 18 passed。
+  - `npm run visual -- --grep 'swipe'`: 5 passed。
+  - `npx playwright test tests/visual/photo-images.spec.ts`: 3 passed。
+  - 撮影（390×844 Mobile、`/photo/gakusou` と `/photo/rot`、scrollTop 0/25/50/75/100%）: 写真の top は常に 28px で固定。0%は写真のみ（ドットなし）。25%以降は文章が下から入って写真に重なり、読める。100%で写真全体がドット化。pageerror なし。WebGL のソフトウェア描画の警告のみ。
+  - 撮影（PC 1440×900、`/photo/gakusou` をホイールで最後まで）: `.halftone` なし。
+- Visual Diffの確認・baseline更新の有無: 差分なし。baseline更新なし。
+- 未確認事項・残課題: 実機（iOS Safari・Android Chrome）でのタッチスクロールとsticky の挙動は未確認。`rot` の 0%・25%・75% は撮影のみで目視は未実施。`GRADIENT_WIDTH` が未コミットの変更で 5 になっている（記録の既定値 0.3 と異なる）。意図どおりか確認が必要。
 - 関連コミット・PR: 未コミット。

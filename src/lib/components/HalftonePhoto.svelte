@@ -1,20 +1,31 @@
 <script context="module" lang="ts">
+	import { EASING_PRESETS, type CubicBezier } from '$lib/cubicBezier';
+
+	// スクロールの進み具合 p（0〜1）からエフェクトのかかり具合への変換:
+	//   かかり具合 = EFFECT_EASING( clamp(p / EFFECT_END, 0, 1) )
+	/** イージング曲線。CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値（EASING_PRESETS か任意の値） */
+	export const EFFECT_EASING: CubicBezier = EASING_PRESETS.easeOutExpo;
+	/** スクロール全体のうち、エフェクトが100%に達する地点（0〜1。0.6 なら冒頭から60%の地点で完了） */
+	export const EFFECT_END = 1;
 	/** 100%時のドット格子の大きさ（CSS px） */
-	export const MAX_CELL_PX = 12;
+	export const MAX_CELL_PX = 64;
 	/** エフェクト開始直後のドット格子の大きさ（CSS px） */
-	export const MIN_CELL_PX = 2;
+	export const MIN_CELL_PX = 12;
 	/** 下→上へ進むかかり具合のグラデーション幅（写真の高さに対する比率） */
-	export const GRADIENT_WIDTH = 0.3;
+	export const GRADIENT_WIDTH = 5;
 </script>
 
 <script lang="ts">
 	// object-fit: contain の写真に重ねるカラーハーフトーンの描画レイヤー。
-	// 親の .photo（position: relative）全体を覆い、progress が 0 の間は何も描かない。
+	// 配置の基準になる親（position: relative / sticky の .photo）全体を覆い、progress が 0 の間は何も描かない。
 	import { onDestroy } from 'svelte';
+	import { cubicBezier } from '$lib/cubicBezier';
 
 	export let src: string;
 	/** スクロール量から求めた全体の進み具合（0〜1） */
 	export let progress = 0;
+	export let easing: CubicBezier = EFFECT_EASING;
+	export let end = EFFECT_END;
 	export let maxCellPx = MAX_CELL_PX;
 	export let minCellPx = MIN_CELL_PX;
 	export let gradientWidth = GRADIENT_WIDTH;
@@ -94,10 +105,13 @@ void main() {
 	let frame = 0;
 	let resizeObserver: ResizeObserver | undefined;
 
+	$: ease = cubicBezier(easing);
+	$: target = ease(Math.min(Math.max(progress / Math.max(end, 0.001), 0), 1));
+
 	// エフェクトを使うまでは追加の画像取得もWebGL初期化もしない
-	$: if (progress > 0 && !failed) activated = true;
+	$: if (target > 0 && !failed) activated = true;
 	$: if (activated && canvas && src !== loadedSrc) loadImage(src);
-	$: progress, maxCellPx, minCellPx, gradientWidth, schedule();
+	$: target, maxCellPx, minCellPx, gradientWidth, schedule();
 
 	function compile(context: WebGL2RenderingContext, type: number, source: string) {
 		const shader = context.createShader(type)!;
@@ -181,10 +195,10 @@ void main() {
 	function step() {
 		frame = 0;
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		shown = reduceMotion ? progress : shown + (progress - shown) * SMOOTHING;
-		if (Math.abs(progress - shown) < 0.001) shown = progress;
+		shown = reduceMotion ? target : shown + (target - shown) * SMOOTHING;
+		if (Math.abs(target - shown) < 0.001) shown = target;
 		draw();
-		if (shown !== progress) schedule();
+		if (shown !== target) schedule();
 	}
 
 	function draw() {

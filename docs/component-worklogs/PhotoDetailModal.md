@@ -102,3 +102,15 @@ npm run visual -- --grep 'component:(modal|image)$'
 - Visual Diffの確認・baseline更新の有無: 既存の初期状態baseline（`photo-*-modal` / `image`）は全件一致。
 - 未確認事項・残課題: 実機・Safari・実GPU環境での描画は未確認。WebGL2不可時のフォールバックは未確認。Mobileの視覚確認は100%時に写真が見えない位置のため、50%のみ確認。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — Mobile限定化に伴い PC のエフェクトを除去
+
+- 状態: 検証済み（Visualの自動テストと Chromium での撮影。実機は未確認）
+- 目的・受け入れ条件: PCの写真詳細にはハーフトーン効果をかけないこと。PCの見た目は、エフェクト導入前（0%）と同じであること。
+- 変更内容・対象ファイル: `PhotoDetailModal.svelte` から HalftonePhoto の import・配置、`effectProgress`、`.photo` の `position: relative` を除去した。`WHEEL_MAX` と handleWheel は残す。
+- props・依存コンポーネントへの影響: なし。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のDesktop写真詳細。ホイールで最後まで送っても `.halftone` は生成されない（1440×900 で確認）。
+- 検証コマンド・結果: `npm run check` は既存の2件のみ。`npm run visual -- --grep 'component:(modal|image)$'` 18 passed。
+- Visual Diffの確認・baseline更新の有無: 差分なし。baseline更新なし。
+- 未確認事項・残課題: 実機での確認は対象外（PCのため）。
+- 関連コミット・PR: 未コミット。

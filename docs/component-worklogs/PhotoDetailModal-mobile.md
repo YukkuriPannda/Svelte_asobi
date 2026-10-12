@@ -43,3 +43,18 @@ Desktopのbaselineは未登録。未実施の検証を成功として記録し�
 - Visual Diffの確認・baseline更新の有無: 比較なし。baseline更新なし。
 - 未確認事項・残課題: スクロール連動の見た目、スクロール可能量が0の場合のタッチフォールバック、実機ブラウザ（iOS Safari・Android Chrome）での表示は未確認。`maxScroll` は scroll イベントでのみ更新するため、画像読み込み後などにコンテンツの高さが変わった場合は次のスクロールまで古い値を使う。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — 写真を sticky で固定し、文章を重ねて表示
+
+- 状態: 検証済み（Visualの自動テストと Chromium での撮影。実機は未確認。Mobileの自動テストは対象外）
+- 目的・受け入れ条件: 写真がスクロールで流れず上端に固定され、説明文・機材がその上に下から重なって出てくること。冒頭は写真のみが見えること。タッチ・スワイプの既存処理は変更しない。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte`。
+  - `.photo`: `position: relative` → `position: sticky; top: 0; z-index: 0`。
+  - `.detail`: `position: relative; z-index: 1; margin: -100vh 0 0; padding: 100vh 0 50px;` と文字の `text-shadow`（背景の板は付けない）。既存の `margin: 50px 0` は置き換えた。
+  - 進み具合: `maxScroll > 0 ? clamp(scrollTop / maxScroll) : 0`（wheelY へのフォールバックを削除）。
+- props・依存コンポーネントへの影響: `HalftonePhoto` の呼び出しは変更なし。`<p>mobile</p>`、タッチハンドラ、スワイプ処理は変更なし。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細（`.modalcontent` が縦スクロールする状態）。
+- 検証コマンド・結果: 前記の `HalftonePhoto.md` の 2026-10-12 の記録と同じ（同一実行）。`npm run visual -- --grep 'swipe'` 5 passed。撮影（390×844、gakusou・rot の0〜100%）で photo の top は 28px で固定、detail は下から上へ移動。
+- Visual Diffの確認・baseline更新の有無: 差分なし。baseline更新なし。
+- 未確認事項・残課題: 実機のスマホ（iOS Safari・Android Chrome）での sticky とスクロールの挙動、タッチ量とのずれは未確認。`maxScroll` は scroll イベントでのみ更新する（従来どおり）。
+- 関連コミット・PR: 未コミット。

@@ -27,10 +27,7 @@
 	let modalContent: HTMLDivElement | undefined;
 	let scrollTop = 0;
 	let maxScroll = 0;
-	$: effectProgress =
-		maxScroll > 0
-			? Math.min(Math.max(scrollTop / maxScroll, 0), 1)
-			: Math.min(Math.max(wheelY / (state2_wheelY + 500), 0), 1);
+	$: effectProgress = maxScroll > 0 ? Math.min(Math.max(scrollTop / maxScroll, 0), 1) : 0;
 
 	function handleScroll() {
 		if (!modalContent) return;
@@ -147,9 +144,15 @@
 			align-items: stretch;
 			color: white;
 			.detail {
+				position: relative;
+				z-index: 1;
 				width: 100%;
-				padding: 0px;
-				margin: 50px 0px;
+				/* 写真（sticky・100vh）の上に重ねる。冒頭は文章が画面の下に隠れている */
+				margin: -100vh 0px 0px;
+				padding: 100vh 0px 50px;
+				text-shadow:
+					0 0 6px rgba(0, 0, 0, 0.9),
+					0 0 2px #000;
 				.title {
 					font-family: serif;
 					width: 100%;
@@ -196,7 +199,9 @@
 			.photo {
 				width: 100%;
 				height: 100vh;
-				position: relative;
+				position: sticky;
+				top: 0;
+				z-index: 0;
 				transition:
 					height 0.5s ease-in-out,
 					width 0.5s ease-in-out;
