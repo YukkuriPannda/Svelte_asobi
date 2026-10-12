@@ -189,3 +189,13 @@ npx playwright test tests/visual/photo-images.spec.ts
 - Visual Diffの確認・baseline更新の有無: 未実施。baseline更新なし。
 - 未確認事項・残課題: ブラウザ・実GPUでの描画は未確認。`dotScale` を 1 未満にしたときの見た目（円が隣と離れること、明るい所の円が小さくなること）は未確認。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — 実際のエフェクトの強さを `strength` で外に出す
+
+- 状態: 実装（型チェックのみ）
+- 目的・受け入れ条件: 親コンポーネントが、描画中のエフェクトの強さ（スムージング後の値）に合わせて別の表示を変えられること。
+- 変更内容・対象ファイル: `HalftonePhoto.svelte`。読み取り専用の `export let strength = 0` を追加し、描画ループで `shown` と同じ値（0〜1）を入れるようにした。
+- props・依存コンポーネントへの影響: 追加のみ。`bind:strength` しない使用箇所（Desktopの `PhotoDetailModal`）の表示は変わらない。`PhotoDetailModal-mobile` が写真を暗くするのに使う。
+- 検証コマンド・結果: `npm run check` は既存のエラー2件・警告23件のみ。
+- 未確認事項・残課題: Visual・実機は未確認。
+- 関連コミット・PR: 未コミット。

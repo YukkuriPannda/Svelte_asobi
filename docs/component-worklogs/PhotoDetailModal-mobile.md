@@ -94,3 +94,26 @@ Desktopのbaselineは未登録。未実施の検証を成功として記録し�
 - Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
 - 未確認事項・残課題: 元データの読み込み後、写真の縁に圧縮版がはみ出して見えないかは未確認（縦横比が同じなら一致するはず）。`display: block` の追加による初期表示の差分も未確認。サムネイルがない写真では背景が空になり、従来と同じ表示になる。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — ドットエフェクトの強さに合わせて写真を暗くする
+
+- 状態: 実装（型チェックのみ。Visual・実機は未確認）
+- 目的・受け入れ条件: ドットエフェクトが強くなるにつれて写真が暗くなり、最も強いときに明るさ50%になること。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte`。`HalftonePhoto` の `strength` を `bind:strength={effectStrength}` で受け取り、`.photo` に `filter: brightness(1 - 0.5 × effectStrength)` をかけた（`MAX_DIM = 0.5`）。`.photo` に指定したので、元写真・圧縮版・ドットの描画レイヤーがまとめて暗くなる。
+- props・依存コンポーネントへの影響: `HalftonePhoto` に読み取り専用の `strength` を追加した（[HalftonePhoto.md](HalftonePhoto.md)）。
+- 影響するページ・表示バリエーション: `/photo` のMobile写真詳細。エフェクトが始まる前（strength 0）は従来と同じ表示。
+- 検証コマンド・結果: `npm run check` は既存の `clickToCopy.js` のエラー2件・警告23件のみ（今回の追加なし）。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
+- 未確認事項・残課題: 実機での見え方、sticky要素に `filter` をかけたときの描画負荷は未確認。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-13 — ドットエフェクトの強さに合わせて写真をぼかす
+
+- 状態: 実装（型チェックのみ。Visual・実機は未確認）
+- 目的・受け入れ条件: 暗くするのと同じく、エフェクトが強くなるにつれて写真がぼけること。
+- 変更内容・対象ファイル: `PhotoDetailModal-mobile.svelte`。`.photo` の `filter` に `blur(MAX_BLUR_PX × effectStrength px)` を追加した（`MAX_BLUR_PX = 4`）。ドットの描画レイヤーもまとめてぼける。
+- 影響するページ・表示バリエーション: `/photo` のMobile写真詳細。strength 0 では従来と同じ表示。
+- 検証コマンド・結果: `npm run check` は既存のエラー2件・警告23件のみ。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
+- 未確認事項・残課題: 上限4pxは仮の値。画面の端がぼけて透けて見えないか、`blur` による描画負荷は未確認。
+- 関連コミット・PR: 未コミット。

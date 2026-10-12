@@ -41,6 +41,8 @@
 	export let dotScale = DOT_SCALE;
 	/** 下に重なっている元写真。透過時、エフェクトがかかった範囲を mask-image で隠す */
 	export let photo: HTMLElement | undefined = undefined;
+	/** 読み取り専用。実際に描いているエフェクトの強さ（0〜1）。bind:strength で受け取る */
+	export let strength = 0;
 
 	const LEVELS = 5; // セルサイズの段階数。隣接段階を混ぜて連続的に育てる
 	const MAX_TEXTURE_PX = 2048;
@@ -330,6 +332,7 @@ void main() {
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		shown = reduceMotion ? target : shown + (target - shown) * SMOOTHING;
 		if (Math.abs(target - shown) < 0.001) shown = target;
+		strength = shown;
 		draw();
 		if (shown !== target) schedule();
 	}

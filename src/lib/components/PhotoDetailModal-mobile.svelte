@@ -29,6 +29,10 @@
 	let photoImage: HTMLDivElement | undefined;
 	let scrollTop = 0;
 	let maxScroll = 0;
+	// ドットの効き具合に合わせて写真を暗くし、ぼかす（最大で明るさ50%・4px）
+	const MAX_DIM = 0.5;
+	const MAX_BLUR_PX = 4;
+	let effectStrength = 0;
 	$: effectProgress = maxScroll > 0 ? Math.min(Math.max(scrollTop / maxScroll, 0), 1) : 0;
 
 	function handleScroll() {
@@ -99,7 +103,7 @@
 			on:touchmove={handleTouchMove}
 			on:touchend={handleTouchEnd}
 		>
-			<div class="photo state">
+			<div class="photo state" style:filter="brightness({1 - MAX_DIM * effectStrength}) blur({MAX_BLUR_PX * effectStrength}px)">
 				<!-- 一覧用サムネイルを背景に敷き、元データが読み込まれたら上に重ねて表示する -->
 				<div
 					class="photoImage"
@@ -109,7 +113,12 @@
 					<img src={post.img_path} alt="Photo" />
 				</div>
 				<!-- ドット化は細部が残らないため、軽い一覧用サムネイルから描く -->
-				<HalftonePhoto src={photoThumbnailUrl(post.id)} progress={effectProgress} photo={photoImage} />
+				<HalftonePhoto
+					src={photoThumbnailUrl(post.id)}
+					progress={effectProgress}
+					photo={photoImage}
+					bind:strength={effectStrength}
+				/>
 			</div>
 
 			<div class="detail state">
@@ -160,10 +169,8 @@
 				/* 写真（sticky・100vh）の上に重ねる。冒頭は文章が画面の下に隠れている */
 				margin: -100vh 0px 0px;
 				padding: 100vh 0px 50px;
-				/* 本文が短くても、最後までスクロールするとタイトルが上端から20pxの位置まで来る高さにする。
-				   上余白 100vh + 本文 (100vh - 20px) + 下余白 50px */
 				box-sizing: border-box;
-				min-height: calc(200vh + 30px);
+				min-height: calc(200vh - 50px);
 				text-shadow:
 					0 0 6px rgba(0, 0, 0, 0.9),
 					0 0 2px #000;
