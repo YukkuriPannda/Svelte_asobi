@@ -169,3 +169,23 @@ npx playwright test tests/visual/photo-images.spec.ts
 - Visual Diffの確認・baseline更新の有無: 未実施。baseline更新なし。
 - 未確認事項・残課題: ブラウザ・実GPUでの描画は未確認。WebGL2 の `texelFetch` と多段階の `texImage2D` が対象環境で動くかは未確認。キーカラーの閾値（0.25）と、明暗の境目までキーカラーにすることの見た目は未確認。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — 円の大きさを格子の大きさから分離
+
+- 状態: 実装（型チェックのみ。Visual・ブラウザは未確認）
+- 目的・受け入れ条件: 格子（セル）の大きさと円（ドット）の大きさを別々に調整できること。円の大きさは格子に対する比率（0〜1）で指定し、円は隣のセルと重ならないこと。既定値 1 では、これまでと同じ見た目になること。
+- 変更内容・対象ファイル: `src/lib/components/HalftonePhoto.svelte` のみ。
+  - module script に定数 `DOT_SCALE`（1）を追加した。
+  - props に `dotScale`（既定 `DOT_SCALE`）を追加した。`gradientWidth`・`transparent` と並べた。
+  - フラグメントシェーダーに `uniform float u_dotScale;` を追加し、半径を `0.70710678 * cell * u_dotScale * sqrt(luminance(color))` にした。
+  - `draw()` で `u_dotScale` に `Math.min(Math.max(dotScale, 0), 1)` を渡す。
+  - `dotScale` の変更で再描画されるよう、リアクティブ文に `dotScale` を加えた。
+  - キーカラー保持、透過、マスクの処理は変更していない。
+- props・依存コンポーネントへの影響: `dotScale` を追加した（省略可。既定 1 でこれまでと同じ見た目）。呼び出し側の変更は不要。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細（`HalftonePhoto` の呼び出し元）。`dotScale` を省略した既定の表示は変わらない想定。`dotScale` < 1 の表示は未使用。
+- 検証コマンド・結果:
+  - `npm run check`（Node v20.18.0）: エラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。件数は既知のとおりで、今回追加したエラーはない。`HalftonePhoto` に関する指摘はなし。
+  - `npm run visual`: Node が v20.18.0（必要なのは v25.4.0）のため未実行。
+- Visual Diffの確認・baseline更新の有無: 未実施。baseline更新なし。
+- 未確認事項・残課題: ブラウザ・実GPUでの描画は未確認。`dotScale` を 1 未満にしたときの見た目（円が隣と離れること、明るい所の円が小さくなること）は未確認。
+- 関連コミット・PR: 未コミット。

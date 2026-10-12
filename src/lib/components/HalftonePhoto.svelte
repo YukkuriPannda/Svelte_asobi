@@ -19,6 +19,8 @@
 	export const PRESERVE_KEY_COLORS = true;
 	/** キーカラーとみなす、2×2の残り3画素の平均との色差（Oklab の距離。白と黒の差が 1） */
 	export const KEY_THRESHOLD = 0.25;
+	/** 円の大きさ（格子に対する比率 0〜1）。1 で最も明るい所がセルを埋める。隣のセルとは重ならない */
+	export const DOT_SCALE = 1;
 </script>
 
 <script lang="ts">
@@ -36,6 +38,7 @@
 	export let minCellPx = MIN_CELL_PX;
 	export let gradientWidth = GRADIENT_WIDTH;
 	export let transparent = TRANSPARENT_BACKGROUND;
+	export let dotScale = DOT_SCALE;
 	/** 下に重なっている元写真。透過時、エフェクトがかかった範囲を mask-image で隠す */
 	export let photo: HTMLElement | undefined = undefined;
 
@@ -60,6 +63,7 @@ uniform float u_maxCell;
 uniform float u_width;
 uniform float u_levels;
 uniform float u_transparent; // 1.0 でドットの間を透過する
+uniform float u_dotScale; // 円の大きさ（格子に対する比率 0〜1）
 uniform float u_maxLod;
 out vec4 outColor;
 
@@ -95,7 +99,7 @@ vec4 halftone(vec2 p, float cell) {
 	float lod = log2(max(cell * u_texScale * 0.5, 1.0));
 	vec3 color = cellColor(uv, lod);
 	// 黒地に明るい所ほど大きいドット。最も明るい所でセルを埋める
-	float radius = 0.70710678 * cell * sqrt(luminance(color));
+	float radius = 0.70710678 * cell * u_dotScale * sqrt(luminance(color));
 	float dist = length(q - center) * cell;
 	float coverage = 1.0 - smoothstep(radius - 0.75, radius + 0.75, dist);
 	return vec4(color * coverage, coverage);
@@ -145,7 +149,7 @@ void main() {
 	// エフェクトを使うまでは追加の画像取得もWebGL初期化もしない
 	$: if (target > 0 && !failed) activated = true;
 	$: if (activated && canvas && src !== loadedSrc) loadImage(src);
-	$: target, maxCellPx, minCellPx, gradientWidth, transparent, photo, schedule();
+	$: target, maxCellPx, minCellPx, gradientWidth, transparent, dotScale, photo, schedule();
 
 	function compile(context: WebGL2RenderingContext, type: number, source: string) {
 		const shader = context.createShader(type)!;
@@ -395,6 +399,7 @@ void main() {
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);
 		gl.uniform1f(uniform('u_transparent'), transparent ? 1 : 0);
+		gl.uniform1f(uniform('u_dotScale'), Math.min(Math.max(dotScale, 0), 1));
 		gl.uniform1f(uniform('u_maxLod'), maxLod);
 		gl.uniform1i(uniform('u_tex'), 0);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
