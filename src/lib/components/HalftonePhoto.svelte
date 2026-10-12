@@ -15,6 +15,10 @@
 	export const GRADIENT_WIDTH = 5;
 	/** true でドットの間を透過する（false は黒地）。透過時は photo に渡した元写真をエフェクト範囲だけマスクで隠す */
 	export const TRANSPARENT_BACKGROUND = true;
+	/** true でコントラストの高いキーカラーを周りと混ぜず、縮小の最後まで1画素として残す */
+	export const PRESERVE_KEY_COLORS = true;
+	/** キーカラーとみなす、2×2の残り3画素の平均との色差（Oklab の距離。白と黒の差が 1） */
+	export const KEY_THRESHOLD = 0.25;
 </script>
 
 <script lang="ts">
@@ -56,12 +60,30 @@ uniform float u_maxCell;
 uniform float u_width;
 uniform float u_levels;
 uniform float u_transparent; // 1.0 でドットの間を透過する
+uniform float u_maxLod;
 out vec4 outColor;
 
 const float FADE = ${FADE.toFixed(4)};
 const float ANGLE = 0.78539816; // 網点格子の傾き 45°
 
 float luminance(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+// 縮小段階 lod の 2×2 を補間せずに読み、キーカラー（a >= 0.5）があればその色、なければ平均を返す
+vec3 cellColor(vec2 uv, float lod) {
+	int level = int(clamp(floor(lod + 0.5), 0.0, u_maxLod));
+	ivec2 size = textureSize(u_tex, level);
+	ivec2 base = ivec2(floor(uv * vec2(size) - 0.5));
+	vec3 sum = vec3(0.0);
+	vec4 key = vec4(0.0);
+	for (int j = 0; j < 2; j++) {
+		for (int i = 0; i < 2; i++) {
+			vec4 texel = texelFetch(u_tex, clamp(base + ivec2(i, j), ivec2(0), size - 1), level);
+			sum += texel.rgb;
+			if (texel.a > key.a) key = texel;
+		}
+	}
+	return key.a >= 0.499 ? key.rgb : sum * 0.25;
+}
 
 // 乗算済みアルファのドット（rgb = 色 × 被覆率、a = 被覆率）
 vec4 halftone(vec2 p, float cell) {
@@ -71,7 +93,7 @@ vec4 halftone(vec2 p, float cell) {
 	vec2 centerPx = transpose(rot) * center * cell;
 	vec2 uv = clamp(vec2(centerPx.x / u_rect.z, 1.0 - centerPx.y / u_rect.w), 0.0, 1.0);
 	float lod = log2(max(cell * u_texScale * 0.5, 1.0));
-	vec3 color = textureLod(u_tex, uv, lod).rgb;
+	vec3 color = cellColor(uv, lod);
 	// 黒地に明るい所ほど大きいドット。最も明るい所でセルを埋める
 	float radius = 0.70710678 * cell * sqrt(luminance(color));
 	float dist = length(q - center) * cell;
@@ -107,6 +129,7 @@ void main() {
 	let gl: WebGL2RenderingContext | null = null;
 	let program: WebGLProgram | null = null;
 	let texture: WebGLTexture | null = null;
+	let maxLod = 0; // 縮小段階の最大番号（段階数 − 1）
 	let imageSize = { width: 0, height: 0 };
 	let textureSize = { width: 0, height: 0 };
 	let loadedSrc = '';
@@ -157,6 +180,89 @@ void main() {
 		resizeObserver.observe(target);
 	}
 
+	const SRGB_TO_LINEAR = Array.from({ length: 256 }, (_, n) => {
+		const c = n / 255;
+		return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+	});
+
+	function toOklab(pixels: Uint8Array, count: number) {
+		const lab = new Float32Array(count * 3);
+		for (let n = 0; n < count; n++) {
+			const r = SRGB_TO_LINEAR[pixels[n * 4]];
+			const g = SRGB_TO_LINEAR[pixels[n * 4 + 1]];
+			const b = SRGB_TO_LINEAR[pixels[n * 4 + 2]];
+			const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+			const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+			const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+			lab[n * 3] = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+			lab[n * 3 + 1] = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+			lab[n * 3 + 2] = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+		}
+		return lab;
+	}
+
+	// 1/2 ずつ縮小した全段階を作る。2×2 の中で残り3画素の平均との色差が KEY_THRESHOLD を超える画素は
+	// 混ぜずにそのまま親画素にし、超えなければ平均する。色差は a = 色差 / (2 × 閾値) としてアルファに入れ、
+	// シェーダーは a >= 0.5 の画素をキーカラーとして扱う
+	function buildLevels(source: Uint8ClampedArray, width: number, height: number) {
+		const threshold = PRESERVE_KEY_COLORS ? KEY_THRESHOLD : Infinity;
+		const levels: { width: number; height: number; pixels: Uint8Array }[] = [];
+		let pixels = new Uint8Array(source);
+		for (;;) {
+			const lab = toOklab(pixels, width * height);
+			const keyness = new Float32Array(width * height);
+			const nextWidth = Math.max(1, Math.floor(width / 2));
+			const nextHeight = Math.max(1, Math.floor(height / 2));
+			const next = new Uint8Array(nextWidth * nextHeight * 4);
+			for (let by = 0; by < Math.ceil(height / 2); by++) {
+				for (let bx = 0; bx < Math.ceil(width / 2); bx++) {
+					const x0 = bx * 2;
+					const y0 = by * 2;
+					const x1 = Math.min(x0 + 1, width - 1);
+					const y1 = Math.min(y0 + 1, height - 1);
+					const block = [y0 * width + x0, y0 * width + x1, y1 * width + x0, y1 * width + x1];
+					let best = block[0];
+					for (const n of block) {
+						let dl = 0;
+						let da = 0;
+						let db = 0;
+						for (const o of block) {
+							if (o === n) continue;
+							dl += lab[o * 3];
+							da += lab[o * 3 + 1];
+							db += lab[o * 3 + 2];
+						}
+						const others = block.filter((o) => o !== n).length || 1;
+						const distance = Math.hypot(
+							lab[n * 3] - dl / others,
+							lab[n * 3 + 1] - da / others,
+							lab[n * 3 + 2] - db / others
+						);
+						keyness[n] = Math.max(keyness[n], distance);
+						if (keyness[n] > keyness[best]) best = n;
+					}
+					// 奇数辺の端のブロックは親画素を持たない（GL の縮小サイズは切り捨て）
+					if (bx >= nextWidth || by >= nextHeight) continue;
+					const target = (by * nextWidth + bx) * 4;
+					for (let c = 0; c < 3; c++) {
+						next[target + c] =
+							keyness[best] > threshold
+								? pixels[best * 4 + c]
+								: Math.round((pixels[block[0] * 4 + c] + pixels[block[1] * 4 + c] + pixels[block[2] * 4 + c] + pixels[block[3] * 4 + c]) / 4);
+					}
+				}
+			}
+			for (let n = 0; n < width * height; n++) {
+				pixels[n * 4 + 3] = Number.isFinite(threshold) ? Math.min(255, Math.round((keyness[n] / (2 * threshold)) * 255)) : 0;
+			}
+			levels.push({ width, height, pixels });
+			if (width === 1 && height === 1) return levels;
+			pixels = next;
+			width = nextWidth;
+			height = nextHeight;
+		}
+	}
+
 	async function loadImage(url: string) {
 		loadedSrc = url;
 		try {
@@ -177,16 +283,26 @@ void main() {
 			const resized = document.createElement('canvas');
 			resized.width = Math.max(1, Math.round(image.width * scale));
 			resized.height = Math.max(1, Math.round(image.height * scale));
-			resized.getContext('2d')!.drawImage(image, 0, 0, resized.width, resized.height);
+			const context = resized.getContext('2d', { willReadFrequently: true })!;
+			context.drawImage(image, 0, 0, resized.width, resized.height);
+			// 縮小段階は自前で作り、キーカラーの情報をアルファに入れて転送する
+			const levels = buildLevels(context.getImageData(0, 0, resized.width, resized.height).data, resized.width, resized.height);
 
 			if (!texture) texture = gl.createTexture();
 			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, resized);
-			gl.generateMipmap(gl.TEXTURE_2D);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			// アルファはキーカラーらしさなので、乗算済みへの変換や上下反転をさせない
+			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+			levels.forEach((level, lod) => {
+				gl!.texImage2D(gl!.TEXTURE_2D, lod, gl!.RGBA, level.width, level.height, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, level.pixels);
+			});
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, levels.length - 1);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			maxLod = levels.length - 1;
 			imageSize = { width: image.width, height: image.height };
 			image.close();
 			textureSize = { width: resized.width, height: resized.height };
@@ -279,6 +395,7 @@ void main() {
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);
 		gl.uniform1f(uniform('u_transparent'), transparent ? 1 : 0);
+		gl.uniform1f(uniform('u_maxLod'), maxLod);
 		gl.uniform1i(uniform('u_tex'), 0);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 	}

@@ -148,3 +148,24 @@ npx playwright test tests/visual/photo-images.spec.ts
 - Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
 - 未確認事項・残課題: ブラウザ・実機での見た目は未確認（マスクの境界とクロスフェードのずれ、iOS Safari の `-webkit-mask-image`）。背後の色は呼び出し側の背景に依存する。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — コントラストの高いキーカラーを縮小の最後まで1画素として保持
+
+- 状態: 実装（型チェックのみ。Visual・ブラウザは未確認）
+- 目的・受け入れ条件: 色の差が大きい画素（キーカラー）を周りと混ぜず、縮小の最後まで1画素として残すこと。ドットの色にキーカラーが反映されること。Visualの既存baselineに影響しないこと（未確認）。
+- 判定方法: 2×2 の中の各画素について、残り3画素の平均との Oklab 色差を求める。最大の色差が `KEY_THRESHOLD`（0.25）を超えた画素をキーカラーとして、親画素にそのまま採用する。超えなければ4画素の平均を採用する。色差だけで判定するため、明暗の境目も対象になる（ユーザーの選択）。ドットの大きさは従来どおり明るさで決まる（ユーザーの選択）。
+- 変更内容・対象ファイル: `src/lib/components/HalftonePhoto.svelte` のみ。
+  - 縮小段階（元サイズから 1×1 まで）を `buildLevels` で自前に作る。色差は a = 色差 / (2 × 閾値) としてアルファに入れ、シェーダーは a >= 0.5 の画素をキーカラーとして扱う。
+  - シェーダーの `cellColor(uv, lod)` は、`textureLod` の代わりに `texelFetch` で 2×2 を補間なしに読む。キーカラーがあればその色、なければ平均を返す。
+  - 転送は `texImage2D` を段階ごとに行う。`UNPACK_PREMULTIPLY_ALPHA_WEBGL` と `UNPACK_FLIP_Y_WEBGL` は false、`UNPACK_ALIGNMENT` は 1。フィルタは `NEAREST_MIPMAP_NEAREST` / `NEAREST`、`TEXTURE_MAX_LEVEL` は段階数 − 1。
+  - 段階数 − 1 を `maxLod` に保存し、`draw()` で `u_maxLod` に渡す。同じテクスチャへ全段階を上書きするため、再読み込み時に古い段階は残らない。
+  - 2D canvas は `willReadFrequently: true` で作り、`getImageData` で画素を読む。
+- props・依存コンポーネントへの影響: なし。`PRESERVE_KEY_COLORS`（true）と `KEY_THRESHOLD`（0.25）は module script の定数で、props には追加していない。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のMobile写真詳細の p > 0 の状態。p = 0 は canvas を作らないため変わらない想定。
+- 検証コマンド・結果:
+  - `npm run check`（Node v20.18.0）: エラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。今回追加したエラーはない。HalftonePhoto に関する指摘もない。
+  - `npm run build`: 未実行（ロジックの変更のみで、ビルド確認は今回の依頼範囲外）。
+  - `npm run visual`: この環境の Node が v20.18.0（必要なのは v25.4.0）のため未実行。
+- Visual Diffの確認・baseline更新の有無: 未実施。baseline更新なし。
+- 未確認事項・残課題: ブラウザ・実GPUでの描画は未確認。WebGL2 の `texelFetch` と多段階の `texImage2D` が対象環境で動くかは未確認。キーカラーの閾値（0.25）と、明暗の境目までキーカラーにすることの見た目は未確認。
+- 関連コミット・PR: 未コミット。
