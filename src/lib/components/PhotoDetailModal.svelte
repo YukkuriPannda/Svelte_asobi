@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { photoPost, type PhotoPost } from '$lib/PostData';
 	import { onMount, onDestroy, beforeUpdate } from 'svelte';
+	import HalftonePhoto from './HalftonePhoto.svelte';
 
 	let wheelY = 0;
 	export let id; // Replace with the actual ID you want to use
@@ -21,9 +22,11 @@
 	const state1_wheelY = 300;
 	const state2_wheelY = 600;
 	const state3_wheelY = 900;
+	const WHEEL_MAX = state2_wheelY + 500;
+	$: effectProgress = Math.min(Math.max(wheelY / WHEEL_MAX, 0), 1);
 
 	function handleWheel(event: WheelEvent) {
-		if (wheelY + event.deltaY > 0 && (wheelY < state2_wheelY + 500 || event.deltaY < 0)) {
+		if (wheelY + event.deltaY > 0 && (wheelY < WHEEL_MAX || event.deltaY < 0)) {
 			wheelY += event.deltaY;
 		}
 
@@ -49,6 +52,7 @@
 		<div class="modalcontent" on:wheel={handleWheel}>
 			<div class="photo state{currentState}">
 				<img src={post.img_path} alt="Photo" />
+				<HalftonePhoto src={post.img_path ?? ''} progress={effectProgress} />
 			</div>
 
 			<div class="detail state{currentState}">
@@ -209,6 +213,7 @@
 			.photo {
 				width: 100%;
 				height: 100%;
+				position: relative;
 				transition: width 0.5s ease-in-out;
 				&.state1,
 				&.state2,

@@ -10,6 +10,7 @@ Svelteコンポーネントのソースごとに一つの記録を持つ。props
 | BlogDashboard           | `src/lib/components/BlogDashboard.svelte`           | [記録](BlogDashboard.md)           |
 | BlogPanel               | `src/lib/components/BlogPanel.svelte`               | [記録](BlogPanel.md)               |
 | Header                  | `src/lib/components/Header.svelte`                  | [記録](Header.md)                  |
+| HalftonePhoto           | `src/lib/components/HalftonePhoto.svelte`           | [記録](HalftonePhoto.md)           |
 | PhotoDetailModal-mobile | `src/lib/components/PhotoDetailModal-mobile.svelte` | [記録](PhotoDetailModal-mobile.md) |
 | PhotoDetailModal        | `src/lib/components/PhotoDetailModal.svelte`        | [記録](PhotoDetailModal.md)        |
 | Scene                   | `src/lib/components/Scene.svelte`                   | [記録](Scene.md)                   |

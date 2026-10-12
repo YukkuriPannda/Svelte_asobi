@@ -21,12 +21,14 @@
 | `photo-3-kasa`                | `image`             | `.modal:not(.hide) .photo` |
 | `photo-4-minimal_and_accent`  | `modal`             | `.modal:not(.hide)`        |
 | `photo-4-minimal_and_accent`  | `image`             | `.modal:not(.hide) .photo` |
-| `photo-5-sonote`              | `modal`             | `.modal:not(.hide)`        |
-| `photo-5-sonote`              | `image`             | `.modal:not(.hide) .photo` |
-| `photo-6-ugoki_houkou01-copy` | `modal`             | `.modal:not(.hide)`        |
-| `photo-6-ugoki_houkou01-copy` | `image`             | `.modal:not(.hide) .photo` |
-| `photo-7-ugoki_houkou01`      | `modal`             | `.modal:not(.hide)`        |
-| `photo-7-ugoki_houkou01`      | `image`             | `.modal:not(.hide) .photo` |
+| `photo-5-rot`                 | `modal`             | `.modal:not(.hide)`        |
+| `photo-5-rot`                 | `image`             | `.modal:not(.hide) .photo` |
+| `photo-6-sonote`              | `modal`             | `.modal:not(.hide)`        |
+| `photo-6-sonote`              | `image`             | `.modal:not(.hide) .photo` |
+| `photo-7-ugoki_houkou01-copy` | `modal`             | `.modal:not(.hide)`        |
+| `photo-7-ugoki_houkou01-copy` | `image`             | `.modal:not(.hide) .photo` |
+| `photo-8-ugoki_houkou01`      | `modal`             | `.modal:not(.hide)`        |
+| `photo-8-ugoki_houkou01`      | `image`             | `.modal:not(.hide) .photo` |
 
 ```powershell
 npm run visual -- --grep 'component:(modal|image)$'
@@ -66,4 +68,37 @@ npm run visual -- --grep 'component:(modal|image)$'
 - 検証コマンド・結果: `npm run build:parse-data` 成功。`npm run visual -- --grep 'component:modal$'` は全8写真で8/8成功。`npm run visual -- --grep 'page:photo-3-kasa '` は3/3成功。`npm run check` は既存 `clickToCopy.js` のimplicit anyエラー2件、警告24件で失敗（今回追加のエラーなし）。`git diff --check` 成功。
 - Visual Diffの確認・baseline更新の有無: 初期モーダルと親ページの比較は差分なし。baseline更新なし。
 - 未確認事項・残課題: Desktopのホイール操作後の見た目、Mobileの表示状態・実機ブラウザーは未確認。画像読み込みはChromium上で検証済み。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — 写真詳細のスクロール連動カラーハーフトーン組み込み
+
+- 状態: 実装（検証未完了。Visualテストは環境不一致で未実行）
+- 目的・受け入れ条件: ホイール量に応じて写真がカラーハーフトーンへ変化すること。開始時（進み具合0）は従来の表示と同じであること。
+- 変更内容・対象ファイル: `src/lib/components/PhotoDetailModal.svelte`。`HalftonePhoto` を `.photo` 内の `<img>` の後ろに配置。`effectProgress = clamp(wheelY / WHEEL_MAX)`、`WHEEL_MAX = state2_wheelY + 500`（handleWheelの既存上限と同じ値）。`.photo` に `position: relative` を追加。`<img>` は変更なし。
+- props・依存コンポーネントへの影響: `HalftonePhoto` を新規に使用。`src={post.img_path ?? ''}`、`progress={effectProgress}`。既存propsへの変更なし。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]` のDesktop写真詳細モーダル。初期状態（wheelY = 0）は `<img>` のみで従来と同じ。ホイール操作後の状態に変化が出る（`photo-*` の `modal` / `image` の初期状態baselineは変化しない想定）。
+- 検証コマンド・結果:
+  - `npm run check`: 既存 `clickToCopy.js` のimplicit anyエラー2件のみ。今回追加のエラーなし（組み込み時の `string | undefined` エラー2件は `?? ''` で解消）。
+  - `npm run build`: 成功（exit 0）。
+  - `npm run visual -- --grep 'component:(modal|image)$'`: 環境照合（Node v25.4.0 / fontsSha256 `50c75fac…` を期待、実際は Node v20.18.0 / `67e79a75…`）で開始前に停止。テストは未実行。
+- Visual Diffの確認・baseline更新の有無: 比較は未実施。baseline更新なし。
+- 未確認事項・残課題: Visual比較（初期状態で差分なしの確認）未実施。ホイール後のエフェクトの見た目、ブラウザ・実機での目視は未確認。環境を揃えて再実行が必要。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-12 — スクロール連動ハーフトーンのVisual比較とエフェクト確認
+
+- 状態: 検証済み（Visual比較・エフェクト目視）
+- 目的・受け入れ条件: 進み具合0で従来と同じ表示、進むにつれてカラーハーフトーンが下から上へ広がること。
+- 変更内容・対象ファイル: 今回はコード変更なし（テストのみ）。写真 `rot` を manifest に追加し、写真詳細IDを `photo-5-rot` / `photo-6-sonote` / `photo-7-ugoki_houkou01-copy` / `photo-8-ugoki_houkou01` に繰り下げ（上の Visual検証表を更新）。
+- 検証コマンド・結果: メインで `npm run visual -- --grep 'component:(modal|image)$'` 18/18 pass、全件 93/93 pass（baselineは HEAD 環境との差分ゼロではなく、環境移行に伴い再生成した値との比較）。
+- エフェクト確認（一時スクリプト、リポジトリ外。dev server 4179、Chromium のSwiftShader WebGL2。親が `fetch` + `createImageBitmap` へ修正した後のコードで撮影）: Desktop 1440×900 `/photo/gakusou` と `/photo/rot`、Mobile 390×844 `/photo/gakusou`。
+  - Desktop 0%（wheelY 0）: canvasなし、従来表示。
+  - Desktop 約27%（wheelY 300）: canvasあり。写真の下側のみドット化。ただし wheelY 300 は `state1` の境界（`> 300` で幅60%へ変化）のため、写真幅は従来どおり100%。
+  - Desktop 約55%（wheelY 600）: 写真幅は state2 の既存CSS（幅60%）で縮小。ハーフトーンは写真の表示矩形に追従し、中央付近に大きめのドット。
+  - Desktop 約109%（wheelY 1200）: 最大のドット。黒地は小さいドットで実質無地。
+  - Mobile 50%（scrollTop 最大の50%）: canvasあり。写真の上部までドットが広がる。
+  - Mobile 100%: canvasは存在するが、スクロールで写真が画面外のため視認できない。
+  - console: `HalftonePhoto: effect disabled` は出ず、pageerror なし。出たのは Chrome のソフトウェアWebGL（SwiftShader）に関する警告のみ。
+- Visual Diffの確認・baseline更新の有無: 既存の初期状態baseline（`photo-*-modal` / `image`）は全件一致。
+- 未確認事項・残課題: 実機・Safari・実GPU環境での描画は未確認。WebGL2不可時のフォールバックは未確認。Mobileの視覚確認は100%時に写真が見えない位置のため、50%のみ確認。
 - 関連コミット・PR: 未コミット。

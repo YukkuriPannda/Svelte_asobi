@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { photoPost, type PhotoPost } from '$lib/PostData';
 	import { onMount, onDestroy, beforeUpdate } from 'svelte';
+	import HalftonePhoto from './HalftonePhoto.svelte';
 
 	let wheelY = 0;
 	export let id; // Replace with the actual ID you want to use
@@ -21,6 +22,21 @@
 	const state1_wheelY = 300;
 	const state2_wheelY = 600;
 	const state3_wheelY = 900;
+
+	// .modalcontent の実スクロール率でエフェクトを進める
+	let modalContent: HTMLDivElement | undefined;
+	let scrollTop = 0;
+	let maxScroll = 0;
+	$: effectProgress =
+		maxScroll > 0
+			? Math.min(Math.max(scrollTop / maxScroll, 0), 1)
+			: Math.min(Math.max(wheelY / (state2_wheelY + 500), 0), 1);
+
+	function handleScroll() {
+		if (!modalContent) return;
+		scrollTop = modalContent.scrollTop;
+		maxScroll = modalContent.scrollHeight - modalContent.clientHeight;
+	}
 
 	let touchStartY: number | null = null;
 	let lastTouchY: number | null = null;
@@ -78,12 +94,15 @@
 		<p>mobile</p>
 		<div
 			class="modalcontent"
+			bind:this={modalContent}
+			on:scroll={handleScroll}
 			on:touchstart={handleTouchStart}
 			on:touchmove={handleTouchMove}
 			on:touchend={handleTouchEnd}
 		>
 			<div class="photo state">
 				<img src={post.img_path} alt="Photo" />
+				<HalftonePhoto src={post.img_path ?? ''} progress={effectProgress} />
 			</div>
 
 			<div class="detail state">
@@ -177,6 +196,7 @@
 			.photo {
 				width: 100%;
 				height: 100vh;
+				position: relative;
 				transition:
 					height 0.5s ease-in-out,
 					width 0.5s ease-in-out;
