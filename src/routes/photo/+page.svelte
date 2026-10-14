@@ -4,7 +4,16 @@
 	import PhotoDetailModal from '$lib/components/PhotoDetailModal.svelte';
 	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
 	import HalftonePhoto from '$lib/components/HalftonePhoto.svelte';
-	import { CURSOR_RADIUS_PX } from '$lib/halftone/cursor';
+	import { CURSOR_RIPPLE_POINTS } from '$lib/halftone/common';
+	import {
+		CURSOR_RADIUS_PX,
+		CURSOR_RIPPLE_MAX_RADIUS_PX,
+		CURSOR_RIPPLE_SPEED_PX,
+		CURSOR_RIPPLE_THRESHOLD,
+		RippleDetector,
+		rippleAlive,
+		type CursorRipple
+	} from '$lib/halftone/cursor';
 	import { photoPost } from '$lib/PostData';
 	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -35,6 +44,15 @@
 	let cursorClient: { x: number; y: number } | null = null; // ギャラリー内の最後のポインター位置（client 座標）。外へ出たら null
 	let cursorFrame = 0;
 	let thumbnailImages: Record<string, HTMLImageElement | null> = {};
+	// 波紋: カーソルの加速度が閾値を超えたら、その位置から波紋を出す。判定はギャラリー全体で1回だけ行い、
+	// 全写真に同じ波紋を渡す。位置はページ基準（スクロールしても写真に対して動かない）で持ち、client 座標の動きだけで判定する
+	const rippleDetector = new RippleDetector();
+	let ripples: CursorRipple[] = []; // ページ基準の CSS px、新しい順
+	let tileOrigins: Record<string, { x: number; y: number }> = {}; // 写真の id → 写真の左上（ページ基準の CSS px）
+	let rippleFrame = 0;
+	let rippleIdle = true; // 判定のループが止まっているか
+	let rippleLastTime = 0;
+	let rippleLastClient: { x: number; y: number } | null = null;
 
 	// 状態の更新は1フレームに1回にまとめる（pointermove・スクロール・リサイズが続いても判定は1回）
 	function scheduleCursorUpdate() {
@@ -57,6 +75,7 @@
 			const rect = pointer && img?.complete && img.naturalWidth > 0 ? img.getBoundingClientRect() : null;
 			if (pointer && rect && distanceToRect(pointer, rect) < CURSOR_RADIUS_PX) {
 				showCursorTile(id, { x: pointer.x - rect.left, y: pointer.y - rect.top });
+				setTileOrigin(id, { x: rect.left + window.scrollX, y: rect.top + window.scrollY });
 			} else if (cursorTiles[id]) {
 				fadeCursorTile(id);
 			}
@@ -69,6 +88,55 @@
 		const current = cursorTiles[id];
 		if (current && current.x === point.x && current.y === point.y) return;
 		cursorTiles = { ...cursorTiles, [id]: point };
+	}
+
+	function setTileOrigin(id: string, origin: { x: number; y: number }) {
+		const current = tileOrigins[id];
+		if (current && current.x === origin.x && current.y === origin.y) return;
+		tileOrigins = { ...tileOrigins, [id]: origin };
+	}
+
+	// 止まっていたループを再開するときは、直前の移動を1フレーム（1/60 秒）の間の動きとみなす。
+	// 古い時刻のままだと経過時間が長くなり、静止からの急発進の加速度を小さく見積もる
+	function scheduleRippleUpdate() {
+		if (typeof window === 'undefined' || rippleFrame) return;
+		if (rippleIdle) rippleLastTime = performance.now() - 1000 / 60;
+		rippleIdle = false;
+		rippleFrame = requestAnimationFrame(updateRipples);
+	}
+
+	// 1フレームの間のポインターの移動（client 座標）から加速度を求め、閾値を超えたら波紋を置く。
+	// 静止した瞬間の減速も拾うため、速度が残っている間はポインターが動かなくてもフレームを進める
+	function updateRipples() {
+		rippleFrame = 0;
+		const now = performance.now();
+		const dt = Math.min((now - rippleLastTime) / 1000, 0.1);
+		rippleLastTime = now;
+		const pointer = detail_modal || reduceMotion ? null : cursorClient;
+		if (!pointer) {
+			rippleDetector.reset();
+			rippleLastClient = null;
+			rippleIdle = true;
+			return;
+		}
+		const last = rippleLastClient ?? pointer;
+		rippleLastClient = pointer;
+		const moved = { x: pointer.x - last.x, y: pointer.y - last.y };
+		if (rippleDetector.update(dt, moved, CURSOR_RIPPLE_THRESHOLD, now)) {
+			const ripple = { x: pointer.x + window.scrollX, y: pointer.y + window.scrollY, time: now };
+			const alive = ripples.filter((item) =>
+				rippleAlive(item, now, CURSOR_RIPPLE_SPEED_PX, CURSOR_RIPPLE_MAX_RADIUS_PX)
+			);
+			ripples = [ripple, ...alive].slice(0, CURSOR_RIPPLE_POINTS);
+		}
+		if (rippleDetector.moving) scheduleRippleUpdate();
+		else rippleIdle = true;
+	}
+
+	// ページ基準の波紋を、写真の左上基準に直す
+	function tileRipples(all: CursorRipple[], origin: { x: number; y: number } | undefined) {
+		if (!origin) return [];
+		return all.map((ripple) => ({ ...ripple, x: ripple.x - origin.x, y: ripple.y - origin.y }));
 	}
 
 	// 範囲の外へ出た写真は、フェードアウトさせてから HalftonePhoto を外す
@@ -85,15 +153,21 @@
 	function handleGalleryPointer(event: PointerEvent) {
 		cursorClient = event.pointerType === 'mouse' ? { x: event.clientX, y: event.clientY } : null;
 		scheduleCursorUpdate();
+		scheduleRippleUpdate();
 	}
 
 	function handleGalleryLeave() {
 		cursorClient = null;
 		scheduleCursorUpdate();
+		// 外へ出た位置を残すと、戻ってきたときの位置の飛びを急加速として数えるので、判定を1回流してリセットする
+		scheduleRippleUpdate();
 	}
 
 	// 詳細モーダルを開いた・動きを減らす設定にしたときは、すべての円を外す
-	$: if (detail_modal || reduceMotion) scheduleCursorUpdate();
+	$: if (detail_modal || reduceMotion) {
+		scheduleCursorUpdate();
+		scheduleRippleUpdate();
+	}
 
 	function handleThumbnailError(id: string) {
 		thumbnailErrors = new Set(thumbnailErrors).add(id);
@@ -147,6 +221,7 @@
 		animationGeneration++;
 		swipeAnimation?.cancel();
 		if (cursorFrame) cancelAnimationFrame(cursorFrame);
+		if (rippleFrame) cancelAnimationFrame(rippleFrame);
 		for (const timer of Object.values(cursorTimers)) clearTimeout(timer);
 	});
 
@@ -277,6 +352,7 @@
 									photo={thumbnailImages[photoPost[i].id] ?? undefined}
 									mode="cursor"
 									pointer={cursorTiles[photoPost[i].id]}
+									ripples={tileRipples(ripples, tileOrigins[photoPost[i].id])}
 								/>
 							{/if}
 						</span>

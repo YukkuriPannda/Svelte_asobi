@@ -23,9 +23,17 @@
 		CURSOR_MAX_CELL_PX,
 		CURSOR_MIN_CELL_PX,
 		CURSOR_RADIUS_PX,
+		CURSOR_RIPPLE_CELL_PX,
+		CURSOR_RIPPLE_EASING,
+		CURSOR_RIPPLE_MAX_RADIUS_PX,
+		CURSOR_RIPPLE_SPEED_PX,
+		CURSOR_RIPPLE_WIDTH_PX,
 		CURSOR_TRAIL_FADE_SPEED,
 		CursorMotion,
-		sampleCursorCurve
+		rippleAlive,
+		rippleUniforms,
+		sampleCursorCurve,
+		type CursorRipple
 	} from '$lib/halftone/cursor';
 	import {
 		ENTRANCE_CELL_END_PX,
@@ -69,6 +77,16 @@
 	export let cursorFollowSpeed = CURSOR_FOLLOW_SPEED;
 	/** カーソルモードの軌跡が消える速さ（1 / 秒）。0 で軌跡を残さない */
 	export let cursorTrailFadeSpeed = CURSOR_TRAIL_FADE_SPEED;
+	/** カーソルモードの波紋（中心は canvas の左上基準の CSS px、time は発生時の performance.now()）。発生の判定は使う側が行う */
+	export let ripples: CursorRipple[] = [];
+	/** カーソルモードの波紋の半径が広がる速度（CSS px / 秒）。限界半径に着くまでの平均の速さ */
+	export let cursorRippleSpeedPx = CURSOR_RIPPLE_SPEED_PX;
+	/** カーソルモードの波紋の限界半径（CSS px）。ここまで広がると消える */
+	export let cursorRippleMaxRadiusPx = CURSOR_RIPPLE_MAX_RADIUS_PX;
+	/** カーソルモードの波紋の広がり方のイージング（cubic-bezier）。進み具合に対する、限界半径に対する半径の比 */
+	export let cursorRippleEasing: CubicBezier = CURSOR_RIPPLE_EASING;
+	/** カーソルモードの波紋のリングの幅（CSS px） */
+	export let cursorRippleWidthPx = CURSOR_RIPPLE_WIDTH_PX;
 
 	const SMOOTHING = 0.25;
 
@@ -93,6 +111,7 @@
 	let lastStepTime = 0;
 
 	$: ease = cubicBezier(easing);
+	$: rippleEase = cubicBezier(cursorRippleEasing);
 	// カーソルモードの効果の強さを入力 x = i / CURSOR_CURVE_STEPS ごとに標本化する（シェーダーは線形補間する）
 	$: cursorCurve = sampleCursorCurve(cursorEasing);
 	// カーソルモードは進み具合を使わず、ポインターがあれば 1、なければ 0 へ向けて shown がスムージングする
@@ -121,6 +140,11 @@
 		cursorMinCellPx,
 		cursorMaxCellPx,
 		cursorCurve,
+		ripples,
+		cursorRippleSpeedPx,
+		cursorRippleMaxRadiusPx,
+		rippleEase,
+		cursorRippleWidthPx,
 		schedule();
 	// 読み込みを待つ間は原画を隠し、読み込みが終わってから入場演出を始める
 	$: if (entranceStatus === 'pending' && photo) setPhotoMask(HIDDEN_MASK);
@@ -193,7 +217,10 @@
 		if (Math.abs(target - shown) < 0.001) shown = target;
 		strength = shown;
 		draw();
-		if (shown !== target || (mode === 'cursor' && cursorMotion.active)) schedule();
+		const rippling =
+			mode === 'cursor' &&
+			ripples.some((ripple) => rippleAlive(ripple, now, cursorRippleSpeedPx, cursorRippleMaxRadiusPx));
+		if (shown !== target || (mode === 'cursor' && cursorMotion.active) || rippling) schedule();
 	}
 
 	function clearMask() {
@@ -256,6 +283,17 @@
 		gl.uniform1f(uniform('u_cursorRadius'), Math.max(cursorRadiusPx * motion * dpr, 0.001));
 		gl.uniform3fv(uniform('u_trail'), cursorMotion.trailUniforms(dpr, height));
 		gl.uniform1i(uniform('u_trailCount'), cursor ? cursorMotion.trail.length : 0);
+		const ripple = rippleUniforms(
+			ripples,
+			performance.now(),
+			{ speedPx: cursorRippleSpeedPx, maxRadiusPx: cursorRippleMaxRadiusPx, ease: rippleEase },
+			dpr,
+			height
+		);
+		gl.uniform4fv(uniform('u_ripples'), ripple.values);
+		gl.uniform1i(uniform('u_rippleCount'), cursor ? ripple.count : 0);
+		gl.uniform1f(uniform('u_rippleWidth'), Math.max(cursorRippleWidthPx * dpr, 0.001));
+		gl.uniform1f(uniform('u_rippleCell'), CURSOR_RIPPLE_CELL_PX * dpr);
 		gl.uniform1fv(uniform('u_cursorCurve'), cursorCurve);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);

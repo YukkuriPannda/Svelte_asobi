@@ -6,6 +6,8 @@ export const LEVELS = 5;
 export const FADE = 0.05;
 /** 軌跡として残す点の最大数（u_trail の長さ） */
 export const CURSOR_TRAIL_POINTS = 32;
+/** 同時に描く波紋の最大数（u_ripples の長さ） */
+export const CURSOR_RIPPLE_POINTS = 8;
 /** カーソルモードの効果の強さの表の分割数（入力 x を 1/32 刻みで標本化する） */
 export const CURSOR_CURVE_STEPS = 32;
 
