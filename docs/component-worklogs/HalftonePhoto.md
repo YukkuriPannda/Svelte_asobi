@@ -231,3 +231,53 @@ npx playwright test tests/visual/photo-images.spec.ts
   - 入場 0.2 秒と、`.modal` の opacity（0.3 秒のフェード）が重なる。
   - 写真の切り替え（スワイプ・矢印）では `{#key open_photo_id}` によりコンポーネントが作り直されるため、切り替えごとに入場演出が再生される。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-14 — カーソルモード（ポインター周りの円形範囲だけにエフェクト）
+
+- 状態: 実装（型チェックと開発サーバーでの Chromium 確認のみ。Visual は環境照合で未実行）
+- 目的・受け入れ条件: `mode="cursor"` のとき、ポインター周りの円形の範囲だけにハーフトーンをかける。ポインター直下ほど格子が大きく、半径の外では原画が見えること。効果は写真の表示領域の内側に限ること。既定のスクロールモードの挙動は変えないこと。
+- 変更内容・対象ファイル: `src/lib/components/HalftonePhoto.svelte` のみ。
+  - module script に定数 `CURSOR_RADIUS_PX`（110）・`CURSOR_MIN_CELL_PX`（4）・`CURSOR_MAX_CELL_PX`（18）を追加。
+  - props に `mode`（既定 `'scroll'`）・`pointer`（既定 null）・`cursorRadiusPx`・`cursorMinCellPx`・`cursorMaxCellPx` を追加。
+  - cursor のとき target = pointer ? 1 : 0 とし、既存の shown のスムージングで出入りする。progress・easing・end は使わない。`pointer` が変わると再描画する。
+  - シェーダーに uniform `u_mode`・`u_pointer`（gl_FragCoord と同じ左下原点の device px）・`u_cursorRadius` を追加。cursor の効果の強さは e = 1 − smoothstep(0, 1, |gl_FragCoord.xy − u_pointer| / 半径)、表示の強さは u_progress（= shown）で、k = clamp(e / FADE) × 表示の強さ。格子は既存の cellA/cellB の段階混合を cursor 用の minCell→maxCell で使い、円は既存の式（0.70710678 × cell × dotScale）。`halftone()`・`cellColor()` は変更なし。
+  - カーソルモードでは原画にマスクをかけず、ドットを原画の上に重ねるだけにする（ユーザー指示で放射状マスクを撤去。`photo` には `clearMask()` だけを行う）。`updateMask` / `updateEntranceMask` は変更なし。
+  - cursor のとき `entrance` は無視する（入場演出とは併用しない）。
+- props・依存コンポーネントへの影響: 追加のみ。既定値（`mode = 'scroll'`）では従来と同じ描画経路。`PhotoDetailModal.svelte` と `PhotoDetailModal-mobile.svelte` は変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧で、マウスが乗っているタイル（`route-photo-gallery.md` 参照）。写真詳細モーダルの表示は変更なし。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。件数は変更前と同じで、HalftonePhoto に関する指摘はなし。
+  - `npm run visual -- --grep 'page:photo(?: |-)'`: 実行前の環境照合で停止。`fontsSha256` が固定値 `67e79a…` と一致せず、このマシンでは `50c75f…`。テストは未実行。`.visual/environment.json` と baseline は変更していない。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（1440×900、DPR 1）で `/photo` を確認。タイルの中心にホバーすると canvas が1つ、大きさはタイルと一致。中心と縁のスクリーンショットで、円形の範囲だけに格子が出て、格子は中心ほど大きく、写真の外には出ないことを目視確認。reduced motion とタッチ入力（CDP）では canvas は0。pageerror と console.error はなし。
+  - 写真詳細モーダルの表示は、この確認の対象外。
+- Visual Diffの確認・baseline更新の有無: 未実施（上記の環境照合で停止）。baseline 更新なし。
+- 未確認事項・残課題:
+  - 実機（iOS Safari・Android Chrome）と実 GPU での描画は未確認。
+  - `CURSOR_*` の値（半径 110、格子 4〜18px）は目視での仮の値。
+  - 透過時、円の隙間には一覧の背景（白）が見える。
+  - ポインターを動かさずにスクロールしたときに円の位置が追従するかは未確認（route 側で `pointerenter` の再発火に依存）。
+  - `u_pointer` は gl_FragCoord と同じ座標系で持ち、距離も gl_FragCoord.xy と比べる。契約の `p − u_pointer` を、この座標系の差として実装した。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-14 — カーソル円の効果の強さを cubic-bezier で指定（`cursorEasing`）、同じ写真の縮小結果をキャッシュ
+
+- 状態: 実装（型チェック、node での表の確認、開発サーバーの Chromium 確認。Visual は環境照合で未実行）
+- 目的・受け入れ条件: カーソルモードで、中心からの距離による効果の強さのイージングを cubic-bezier で指定できること（既定は `EASING_PRESETS.easeInOut`）。複数のタイルを繰り返しマウントしても、同じ写真の取得と縮小を繰り返さないこと。スクロールモード・入場演出・既存 props の既定値は変えないこと。
+- 変更内容・対象ファイル: `src/lib/components/HalftonePhoto.svelte` のみ。
+  - module script に `CURSOR_EASING`（`EASING_PRESETS.easeInOut`）を追加した。props に `cursorEasing`（既定 `CURSOR_EASING`）を追加した。
+  - カーソルの効果の強さを、x = clamp(1 − 距離 / 半径, 0, 1)（縁 0、中心 1）、e = clamp(ease(x), 0, 1) に変えた。従来の `1 − smoothstep(0, 1, 距離 / 半径)` は置き換えた。
+  - `sampleCursorCurve(cursorEasing)` が、x = i / 32（i = 0〜32）の 33 点を既存の `cubicBezier()` で標本化し、`uniform float u_cursorCurve[33]` として渡す。シェーダーは x × 32 の位置を線形補間して e を求める。`cursorEasing` が変わると表を作り直して再描画する。
+  - 取得と縮小を `prepareImage`（fetch → createImageBitmap → 縮小 → `buildLevels`）に分けた。`mode="cursor"` のときだけ module の `cursorImageCache`（src → Promise）を使う。キャッシュがあれば fetch と `buildLevels` を省略し、テクスチャ転送だけ行う。取得に失敗したものはキャッシュから外し、次回に取り直す。Promise を保持するので、同じ src を同時に読むインスタンスがあっても取得は1回になる。scroll モードと入場演出は従来どおり毎回取得する。
+  - 前回の記録の定数値（`CURSOR_RADIUS_PX` 110、`CURSOR_MIN_CELL_PX` 4、`CURSOR_MAX_CELL_PX` 18）と、現在のコードの値（500 / 1 / 10）が一致していなかった。この記録は現在のコードの値を前提にしている。値を変えた経緯は未確認。
+- props・依存コンポーネントへの影響: `cursorEasing` を追加した。既存 props の既定値と、scroll・入場演出の描画経路は変更なし。`PhotoDetailModal.svelte` と `PhotoDetailModal-mobile.svelte` は変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧のカーソル円（`route-photo-gallery.md` の 2026-10-14 の記録を参照）。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js` の implicit any のみ）、警告23件。`HalftonePhoto.svelte` の警告は0件。`photo/+page.svelte` の警告は5件で、いずれもモーダルの `on:click` 要素（a11y 警告2組）と未使用セレクタ `n :global(body)`。今回の変更で増えたものはない。
+  - 表の確認（node。`cubicBezier.ts` を esbuild で変換して実行）: easeInOut・easeOut・easeOutExpo・linear の 33 点はいずれも単調増加で、端点は 0 と 1。x = 0.5 の e は easeInOut が 0.5000、easeOutExpo が 0.9718 で、異なる値になることを確認。x = 0.1 の e は easeInOut 0.0201、easeOutExpo 0.4925。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（1440×900、DPR 1）で `/photo` を確認。同じ写真に出入りを2回しても `fetch` は1回だった（キャッシュ有効）。`cursorEasing` を実際に変えたブラウザ確認は行っていない（表の数値のみ）。
+- Visual Diffの確認・baseline更新の有無: 未実施（環境照合で停止）。baseline 更新なし。
+- 未確認事項・残課題:
+  - 実機（iOS Safari・Android Chrome）と実 GPU での描画は未確認。
+  - 縮小結果のキャッシュはページの生存中保持し、上限を設けていない。件数が多い場合のメモリは未評価。
+  - 既定の easeInOut での見た目（効果の強さの形）は目視していない。
+- 関連コミット・PR: 未コミット。

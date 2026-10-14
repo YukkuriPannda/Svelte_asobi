@@ -9,7 +9,9 @@ export const EASING_PRESETS = {
 	easeOut: [0, 0, 0.58, 1],
 	easeInOut: [0.42, 0, 0.58, 1],
 	/** easings.net の easeOutExpo の cubic-bezier 近似 */
-	easeOutExpo: [0.16, 1, 0.3, 1]
+	easeOutExpo: [0.16, 1, 0.3, 1],
+	/** easings.net の easeInExpo の cubic-bezier 近似 */
+	easeInExpo: [0.7, 0, 0.84, 0]
 } as const satisfies Record<string, CubicBezier>;
 
 /** 0〜1 の入力を cubic-bezier で 0〜1 付近の出力へ写す関数を返す（CSS と同じ解き方） */

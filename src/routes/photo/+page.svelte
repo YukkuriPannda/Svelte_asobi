@@ -3,6 +3,7 @@
 	import Header from '$lib/components/Header.svelte';
 	import PhotoDetailModal from '$lib/components/PhotoDetailModal.svelte';
 	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
+	import HalftonePhoto, { CURSOR_RADIUS_PX } from '$lib/components/HalftonePhoto.svelte';
 	import { photoPost } from '$lib/PostData';
 	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -24,6 +25,74 @@
 	let swipeAnimation: Animation | null = null;
 	let animationGeneration = 0;
 	let thumbnailErrors = new Set<string>();
+	// マウスが乗っている写真の周りの円形の範囲（CURSOR_RADIUS_PX）に入った写真だけに、カーソル用のドットエフェクトを重ねる。
+	// 円は写真の境目をまたぐため、ギャラリー全体でポインターを追跡し、写真ごとに範囲に入っているかを判定する
+	const CURSOR_FADE_OUT_MS = 400; // 範囲の外へ出てから HalftonePhoto を外すまでの時間（フェードアウトの分）
+	// 写真の id → 写真の左上基準のポインター位置。null はフェードアウト中（まだアンマウントしていない）。キーが無ければマウントしない
+	let cursorTiles: Record<string, { x: number; y: number } | null> = {};
+	const cursorTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+	let cursorClient: { x: number; y: number } | null = null; // ギャラリー内の最後のポインター位置（client 座標）。外へ出たら null
+	let cursorFrame = 0;
+	let thumbnailImages: Record<string, HTMLImageElement | null> = {};
+
+	// 状態の更新は1フレームに1回にまとめる（pointermove・スクロール・リサイズが続いても判定は1回）
+	function scheduleCursorUpdate() {
+		if (typeof window === 'undefined' || cursorFrame) return;
+		cursorFrame = requestAnimationFrame(updateCursorTiles);
+	}
+
+	function distanceToRect(point: { x: number; y: number }, rect: DOMRect) {
+		const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
+		const dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
+		return Math.hypot(dx, dy);
+	}
+
+	function updateCursorTiles() {
+		cursorFrame = 0;
+		// 詳細モーダル中・動きを減らす設定・マウス以外の入力では、円は出さない
+		const pointer = detail_modal || reduceMotion ? null : cursorClient;
+		for (const [id, img] of Object.entries(thumbnailImages)) {
+			// 読み込みに失敗した写真には出さない（失敗時は img が外れる）
+			const rect = pointer && img?.complete && img.naturalWidth > 0 ? img.getBoundingClientRect() : null;
+			if (pointer && rect && distanceToRect(pointer, rect) < CURSOR_RADIUS_PX) {
+				showCursorTile(id, { x: pointer.x - rect.left, y: pointer.y - rect.top });
+			} else if (cursorTiles[id]) {
+				fadeCursorTile(id);
+			}
+		}
+	}
+
+	function showCursorTile(id: string, point: { x: number; y: number }) {
+		clearTimeout(cursorTimers[id]);
+		delete cursorTimers[id];
+		const current = cursorTiles[id];
+		if (current && current.x === point.x && current.y === point.y) return;
+		cursorTiles = { ...cursorTiles, [id]: point };
+	}
+
+	// 範囲の外へ出た写真は、フェードアウトさせてから HalftonePhoto を外す
+	function fadeCursorTile(id: string) {
+		cursorTiles = { ...cursorTiles, [id]: null };
+		cursorTimers[id] = setTimeout(() => {
+			delete cursorTimers[id];
+			const next = { ...cursorTiles };
+			delete next[id];
+			cursorTiles = next;
+		}, CURSOR_FADE_OUT_MS);
+	}
+
+	function handleGalleryPointer(event: PointerEvent) {
+		cursorClient = event.pointerType === 'mouse' ? { x: event.clientX, y: event.clientY } : null;
+		scheduleCursorUpdate();
+	}
+
+	function handleGalleryLeave() {
+		cursorClient = null;
+		scheduleCursorUpdate();
+	}
+
+	// 詳細モーダルを開いた・動きを減らす設定にしたときは、すべての円を外す
+	$: if (detail_modal || reduceMotion) scheduleCursorUpdate();
 
 	function handleThumbnailError(id: string) {
 		thumbnailErrors = new Set(thumbnailErrors).add(id);
@@ -76,6 +145,8 @@
 	onDestroy(() => {
 		animationGeneration++;
 		swipeAnimation?.cancel();
+		if (cursorFrame) cancelAnimationFrame(cursorFrame);
+		for (const timer of Object.values(cursorTimers)) clearTimeout(timer);
 	});
 
 	function handleSwipeStart(event: TouchEvent) {
@@ -174,9 +245,16 @@
 	});
 </script>
 
+<svelte:window on:scroll={scheduleCursorUpdate} on:resize={scheduleCursorUpdate} />
 <div class={detail_modal ? 'scrolllock' : ''}>
 	<div style={detail_modal ? 'filter: blur(3px)' : ''}><Header /></div>
-	<div class="body" data-visual-id="photo-gallery" style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}>
+	<div
+		class="body"
+		data-visual-id="photo-gallery"
+		style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}
+		on:pointermove={handleGalleryPointer}
+		on:pointerleave={handleGalleryLeave}
+	>
 		{#each photoPost as _, i}
 			<div class="photoPost" data-visual-id={`photo-${photoPost[i].id}`}>
 				<button on:click={() => openPhotoPost(photoPost[i].id)} aria-label={`写真を開く: ${photoPost[i].title}`}>
@@ -185,7 +263,22 @@
 							サムネイルを読み込めません
 						</span>
 					{:else}
-						<img src={photoThumbnailUrl(photoPost[i].id)} alt={photoPost[i].title} on:error={() => handleThumbnailError(photoPost[i].id)} />
+						<span class="thumbnail">
+							<img
+								bind:this={thumbnailImages[photoPost[i].id]}
+								src={photoThumbnailUrl(photoPost[i].id)}
+								alt={photoPost[i].title}
+								on:error={() => handleThumbnailError(photoPost[i].id)}
+							/>
+							{#if cursorTiles[photoPost[i].id] !== undefined}
+								<HalftonePhoto
+									src={photoThumbnailUrl(photoPost[i].id)}
+									photo={thumbnailImages[photoPost[i].id] ?? undefined}
+									mode="cursor"
+									pointer={cursorTiles[photoPost[i].id]}
+								/>
+							{/if}
+						</span>
 					{/if}
 				</button>
 			</div>
@@ -252,6 +345,14 @@
 		img {
 			width: 100%;
 			height: auto;
+		}
+		// カーソル用のドットエフェクトの基準（HalftonePhoto の canvas はこの中で絶対配置する）
+		.thumbnail {
+			position: relative;
+			display: block;
+			img {
+				display: block;
+			}
 		}
 		.thumbnail-error {
 			display: block;

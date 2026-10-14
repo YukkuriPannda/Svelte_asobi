@@ -22,6 +22,17 @@
 	/** 円の大きさ（格子に対する比率 0〜1）。1 で最も明るい所がセルを埋める。隣のセルとは重ならない */
 	export const DOT_SCALE = 0.8;
 
+	// カーソルモード（mode="cursor"）: ポインター周囲の円形の範囲だけにエフェクトをかける。
+	// 効果の強さ e = clamp(ease(x), 0, 1)、x = clamp(1 − 距離 / 半径, 0, 1)（縁 0、中心 1）。ease は CURSOR_EASING の cubic-bezier。
+	/** カーソルモードの効果範囲の半径（CSS px）。ポインターからこの距離で効果が 0 になる */
+	export const CURSOR_RADIUS_PX = 1000;
+	/** カーソルモードの縁（効果が弱い所）の格子の大きさ（CSS px） */
+	export const CURSOR_MIN_CELL_PX = 1;
+	/** カーソルモードの中心（ポインター直下）の格子の大きさ（CSS px） */
+	export const CURSOR_MAX_CELL_PX = 50;
+	/** カーソルモードのイージング曲線（CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
+	export const CURSOR_EASING: CubicBezier = EASING_PRESETS.easeInExpo;
+
 	// 入場演出（entrance を true にしたとき、画像の読み込み直後に一度だけ再生する）。
 	// 写真の上端から下端へ前線が進み、各行の局所進行度 L（0〜1）で格子・円・原画への切り替えを決める。
 	/** 入場演出の長さ（ms） */
@@ -40,6 +51,21 @@
 	const ENTRANCE_MASK_STEPS = 24;
 	/** 入場演出の読み込み待ちの間、原画を隠しておくマスク（全面透明） */
 	const HIDDEN_MASK = 'linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0))';
+
+	/** 縮小段階（2 の累乗で縮めた画素）。シェーダーに渡す1段階分 */
+	interface PreparedLevel {
+		width: number;
+		height: number;
+		pixels: Uint8Array;
+	}
+	/** 取得と縮小が終わった画像。WebGL に転送する前の値 */
+	interface PreparedImage {
+		levels: PreparedLevel[];
+		imageSize: { width: number; height: number };
+		textureSize: { width: number; height: number };
+	}
+	// カーソルモードで取得・縮小した画像のキャッシュ（src → 結果）。同じ写真のタイルを繰り返しマウントしても、取得と縮小は一度だけにする
+	const cursorImageCache = new Map<string, Promise<PreparedImage>>();
 </script>
 
 <script lang="ts">
@@ -64,12 +90,25 @@
 	export let strength = 0;
 	/** true なら、画像の読み込み直後に入場演出を一度だけ再生する（progress とは独立。入場中はスクロール連動を描かない） */
 	export let entrance = false;
+	/** 効果の求め方。scroll は進み具合（progress）による下からの前線、cursor はポインター周りの円形範囲 */
+	export let mode: 'scroll' | 'cursor' = 'scroll';
+	/** カーソルの位置（canvas の左上基準の CSS px）。cursor のとき、null で効果を 0 へフェードアウトする */
+	export let pointer: { x: number; y: number } | null = null;
+	/** カーソルモードの効果範囲の半径（CSS px） */
+	export let cursorRadiusPx = CURSOR_RADIUS_PX;
+	/** カーソルモードの縁の格子の大きさ（CSS px） */
+	export let cursorMinCellPx = CURSOR_MIN_CELL_PX;
+	/** カーソルモードの中心の格子の大きさ（CSS px） */
+	export let cursorMaxCellPx = CURSOR_MAX_CELL_PX;
+	/** カーソルモードの効果の強さのイージング（cubic-bezier）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
+	export let cursorEasing: CubicBezier = CURSOR_EASING;
 
 	const LEVELS = 5; // セルサイズの段階数。隣接段階を混ぜて連続的に育てる
 	const MAX_TEXTURE_PX = 2048;
 	const SMOOTHING = 0.25;
 	const FADE = 0.05; // 原画からクロスフェードする範囲（シェーダーと同じ値）
 	const MASK_STEPS = 8;
+	const CURSOR_CURVE_STEPS = 32; // カーソルモードの効果の強さの表の分割数（入力 x を 1/32 刻みで標本化する）
 
 	const VERTEX_SHADER = `#version 300 es
 in vec2 a_pos;
@@ -93,6 +132,10 @@ uniform float u_entranceCoarse; // 入場演出の開始時の格子（device px
 uniform float u_entranceFine; // 入場演出の終了時の格子（device px）
 uniform float u_entranceDot; // 入場演出の円の直径（device px）
 uniform float u_entranceWidth; // 入場演出の前線の幅
+uniform float u_mode; // 0.0 はスクロール（下端からの前線）、1.0 はカーソル（ポインター周りの円）
+uniform vec2 u_pointer; // カーソル位置（gl_FragCoord と同じ左下原点の device px）
+uniform float u_cursorRadius; // カーソルモードの効果半径（device px）
+uniform float u_cursorCurve[${CURSOR_CURVE_STEPS + 1}]; // 効果の強さの表（入力 x = i / ${CURSOR_CURVE_STEPS} に対する e。cursorEasing を標本化）
 out vec4 outColor;
 
 const float FADE = ${FADE.toFixed(4)};
@@ -157,9 +200,21 @@ void main() {
 		outColor = entranceDots * fade;
 		return;
 	}
-	// 下端 d=0 から上端 d=1 へ前線が進む
-	float d = p.y / u_rect.w;
-	float e = smoothstep(0.0, 1.0, (u_progress * (1.0 + u_width) - d) / u_width);
+	// 効果の強さ e（0〜1）と表示の強さ strength。スクロールは下端 d=0 から上端 d=1 へ前線が進む
+	float e;
+	float strength = 1.0;
+	if (u_mode > 0.5) {
+		// カーソル: x は縁 0 → 中心 1 の入力、e は表（cursorEasing を標本化）を線形補間した値。出入りは u_progress（スムージング値）で掛ける
+		// u_pointer は gl_FragCoord と同じ座標系なので、p ではなく gl_FragCoord.xy と比べる
+		float x = clamp(1.0 - length(gl_FragCoord.xy - u_pointer) / u_cursorRadius, 0.0, 1.0);
+		float f = x * ${CURSOR_CURVE_STEPS}.0;
+		int idx = min(int(floor(f)), ${CURSOR_CURVE_STEPS - 1});
+		e = clamp(mix(u_cursorCurve[idx], u_cursorCurve[idx + 1], f - float(idx)), 0.0, 1.0);
+		strength = u_progress;
+	} else {
+		float d = p.y / u_rect.w;
+		e = smoothstep(0.0, 1.0, (u_progress * (1.0 + u_width) - d) / u_width);
+	}
 	if (e <= 0.0) {
 		outColor = vec4(0.0);
 		return;
@@ -174,7 +229,7 @@ void main() {
 		halftone(p, cellB, 0.70710678 * cellB * u_dotScale),
 		s - i
 	);
-	float k = clamp(e / FADE, 0.0, 1.0);
+	float k = clamp(e / FADE, 0.0, 1.0) * strength;
 	// 黒地はセル全体を不透明にし、透過時はドットの被覆率だけを残す
 	outColor = vec4(dots.rgb, mix(1.0, dots.a, u_transparent)) * k;
 }`;
@@ -196,14 +251,39 @@ void main() {
 	let entranceStatus: 'idle' | 'pending' | 'running' | 'done' = 'idle';
 	let entranceStart = 0;
 	let entranceT = 0; // 入場演出の進み具合（0〜1）
+	let lastPointer = { x: 0, y: 0 }; // カーソルモードで最後にあったポインターの位置（フェードアウト中に使う）
+	let cursorCurve = new Float32Array(CURSOR_CURVE_STEPS + 1); // cursorEasing を標本化した表（u_cursorCurve）
 
 	$: ease = cubicBezier(easing);
-	$: target = ease(Math.min(Math.max(progress / Math.max(end, 0.001), 0), 1));
+	// カーソルモードの効果の強さを入力 x = i / CURSOR_CURVE_STEPS ごとに標本化する（シェーダーは線形補間する）
+	$: cursorCurve = sampleCursorCurve(cursorEasing);
+	// カーソルモードは進み具合を使わず、ポインターがあれば 1、なければ 0 へ向けて shown がスムージングする
+	$: target =
+		mode === 'cursor'
+			? pointer
+				? 1
+				: 0
+			: ease(Math.min(Math.max(progress / Math.max(end, 0.001), 0), 1));
+	// フェードアウト中も最後の位置を使うため、ポインターが来たときだけ覚えておく
+	$: if (pointer) lastPointer = pointer;
 
 	// エフェクトを使うまでは追加の画像取得もWebGL初期化もしない
 	$: if (target > 0 && !failed) activated = true;
 	$: if (activated && canvas && src !== loadedSrc) loadImage(src);
-	$: target, maxCellPx, minCellPx, gradientWidth, transparent, dotScale, photo, schedule();
+	$: target,
+		maxCellPx,
+		minCellPx,
+		gradientWidth,
+		transparent,
+		dotScale,
+		photo,
+		mode,
+		pointer,
+		cursorRadiusPx,
+		cursorMinCellPx,
+		cursorMaxCellPx,
+		cursorCurve,
+		schedule();
 	// 読み込みを待つ間は原画を隠し、読み込みが終わってから入場演出を始める
 	$: if (entranceStatus === 'pending' && photo) setPhotoMask(HIDDEN_MASK);
 
@@ -342,22 +422,16 @@ void main() {
 		}
 	}
 
-	async function loadImage(url: string) {
-		loadedSrc = url;
+	// 画像を取得して縮小段階を作る（WebGL は使わない）
+	async function prepareImage(url: string): Promise<PreparedImage> {
+		// 画素を読むためCORS付きで取得する。別オリジンの場合、<img>がCORSなしで取得した応答
+		// （Vary: Origin なし）がキャッシュされているとCORSで弾かれるため、キャッシュを通さずに取り直す。
+		// 同一オリジン（一覧用サムネイルなど）はキャッシュをそのまま使う。
+		const sameOrigin = new URL(url, location.href).origin === location.origin;
+		const response = await fetch(url, { mode: 'cors', cache: sameOrigin ? 'default' : 'reload' });
+		if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
+		const image = await createImageBitmap(await response.blob());
 		try {
-			if (!gl) setupGl(canvas!);
-			// 画素を読むためCORS付きで取得する。別オリジンの場合、<img>がCORSなしで取得した応答
-			// （Vary: Origin なし）がキャッシュされているとCORSで弾かれるため、キャッシュを通さずに取り直す。
-			// 同一オリジン（一覧用サムネイルなど）はキャッシュをそのまま使う。
-			const sameOrigin = new URL(url, location.href).origin === location.origin;
-			const response = await fetch(url, { mode: 'cors', cache: sameOrigin ? 'default' : 'reload' });
-			if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
-			const image = await createImageBitmap(await response.blob());
-			if (url !== loadedSrc || !gl) {
-				image.close();
-				return;
-			}
-
 			const scale = Math.min(1, MAX_TEXTURE_PX / Math.max(image.width, image.height));
 			const resized = document.createElement('canvas');
 			resized.width = Math.max(1, Math.round(image.width * scale));
@@ -370,6 +444,37 @@ void main() {
 				resized.width,
 				resized.height
 			);
+			return {
+				levels,
+				imageSize: { width: image.width, height: image.height },
+				textureSize: { width: resized.width, height: resized.height }
+			};
+		} finally {
+			image.close();
+		}
+	}
+
+	// カーソルモードは同じ src の結果を使い回す（取得と縮小を省略する）。失敗した取得は残さず、次回に取り直す
+	function cachedCursorImage(url: string): Promise<PreparedImage> {
+		let prepared = cursorImageCache.get(url);
+		if (!prepared) {
+			const created = prepareImage(url);
+			cursorImageCache.set(url, created);
+			created.catch(() => {
+				if (cursorImageCache.get(url) === created) cursorImageCache.delete(url);
+			});
+			prepared = created;
+		}
+		return prepared;
+	}
+
+	async function loadImage(url: string) {
+		loadedSrc = url;
+		try {
+			if (!gl) setupGl(canvas!);
+			const prepared = await (mode === 'cursor' ? cachedCursorImage(url) : prepareImage(url));
+			if (url !== loadedSrc || !gl) return;
+			const { levels } = prepared;
 
 			if (!texture) texture = gl.createTexture();
 			gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -396,9 +501,8 @@ void main() {
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 			maxLod = levels.length - 1;
-			imageSize = { width: image.width, height: image.height };
-			image.close();
-			textureSize = { width: resized.width, height: resized.height };
+			imageSize = prepared.imageSize;
+			textureSize = prepared.textureSize;
 			if (entranceStatus === 'pending') {
 				entranceStatus = 'running';
 				entranceStart = performance.now();
@@ -442,6 +546,16 @@ void main() {
 	function smoothstep(x: number) {
 		const t = Math.min(Math.max(x, 0), 1);
 		return t * t * (3 - 2 * t);
+	}
+
+	// cursorEasing を入力 x = i / CURSOR_CURVE_STEPS（0〜1）ごとに標本化する。値は 0〜1 に収める
+	function sampleCursorCurve(curve: CubicBezier) {
+		const ease = cubicBezier(curve);
+		const table = new Float32Array(CURSOR_CURVE_STEPS + 1);
+		for (let i = 0; i <= CURSOR_CURVE_STEPS; i++) {
+			table[i] = Math.min(Math.max(ease(i / CURSOR_CURVE_STEPS), 0), 1);
+		}
+		return table;
 	}
 
 	function clearMask() {
@@ -524,8 +638,12 @@ void main() {
 		const fit = Math.min(width / imageSize.width, height / imageSize.height);
 		const rectWidth = imageSize.width * fit;
 		const rectHeight = imageSize.height * fit;
-		const entering = entranceStatus === 'running';
-		if (entering) updateEntranceMask(height, (height - rectHeight) / 2, rectHeight, entranceT);
+		// カーソルモードは入場演出と併用しない（entrance は無視する）
+		const cursor = mode === 'cursor';
+		const entering = !cursor && entranceStatus === 'running';
+		// カーソルモードは原画を隠さず、ドットを上に重ねるだけにする
+		if (cursor) clearMask();
+		else if (entering) updateEntranceMask(height, (height - rectHeight) / 2, rectHeight, entranceT);
 		else updateMask(height, (height - rectHeight) / 2, rectHeight);
 		if (!entering && shown <= 0) return;
 
@@ -544,8 +662,13 @@ void main() {
 		gl.uniform1f(uniform('u_entranceFine'), ENTRANCE_CELL_END_PX * dpr);
 		gl.uniform1f(uniform('u_entranceDot'), ENTRANCE_DOT_PX * dpr);
 		gl.uniform1f(uniform('u_entranceWidth'), ENTRANCE_GRADIENT_WIDTH);
-		gl.uniform1f(uniform('u_minCell'), minCellPx * dpr);
-		gl.uniform1f(uniform('u_maxCell'), maxCellPx * dpr);
+		gl.uniform1f(uniform('u_minCell'), (cursor ? cursorMinCellPx : minCellPx) * dpr);
+		gl.uniform1f(uniform('u_maxCell'), (cursor ? cursorMaxCellPx : maxCellPx) * dpr);
+		gl.uniform1f(uniform('u_mode'), cursor ? 1 : 0);
+		// 座標は gl_FragCoord と同じく左下原点の device px に直す
+		gl.uniform2f(uniform('u_pointer'), lastPointer.x * dpr, height - lastPointer.y * dpr);
+		gl.uniform1f(uniform('u_cursorRadius'), cursorRadiusPx * dpr);
+		gl.uniform1fv(uniform('u_cursorCurve'), cursorCurve);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);
 		gl.uniform1f(uniform('u_transparent'), transparent ? 1 : 0);
