@@ -288,3 +288,63 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 影響ページ: `/photo`（cursor モードの使用箇所）。scroll モードと入場演出は変更なし。
 - 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードに軌跡を追加
+
+- 変更: カーソルが `CURSOR_TRAIL_SPACING_PX`（40px）進むたびに、その時点の半径（`cursorRadiusPx` × 移動量 m）で軌跡の点を置く（最大32点）。各点の半径は `cursorTrailFadeSpeed`（既定 `CURSOR_TRAIL_FADE_SPEED` = 3 / 秒）で指数的に縮み、1px未満で捨てる。シェーダーは現在位置と軌跡の全点のうち最も強い効果を使う。中心の格子は全点共通で、移動量 m による。
+- 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出は変更なし。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 モードごとにモジュールを分割
+
+- 変更: 777行あった `HalftonePhoto.svelte` から、調整値と計算を `src/lib/halftone/` へ移した。コンポーネントは props・状態・描画の組み立てだけを持つ（約290行）。props と表示は変更なし。
+  - `scroll.ts`: スクロールモードの調整値（`EFFECT_*`、`MAX/MIN_CELL_PX`、`GRADIENT_WIDTH`、`TRANSPARENT_BACKGROUND`、`DOT_SCALE`）と元写真のマスク。
+  - `cursor.ts`: カーソルモードの調整値（`CURSOR_*`）、効果の強さの表、移動量と軌跡を更新する `CursorMotion`。
+  - `entrance.ts`: 入場演出の調整値（`ENTRANCE_*`）と原画のマスク。
+  - `image.ts`: 画像の取得、キーカラーを保持する縮小段階、キャッシュ、テクスチャ転送。
+  - `shader.ts`: WebGL2 のシェーダーとプログラムの作成。`common.ts`: 共有する値と smoothstep。
+- 調整値の import 元が変わった。`/photo` の `CURSOR_RADIUS_PX` は `$lib/halftone/cursor` から読む。
+- 影響ページ: `/photo`（cursor）、写真詳細のPC・モバイル（entrance / scroll）。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。`npm run build` 成功。ブラウザでの目視・Visual比較は未実施（`.visual/environment.json` のフォント照合で停止する既知の問題）。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードに加速度で発生する波紋を追加
+
+- 変更: カーソルの加速度が閾値を超えた瞬間に、その位置からリング状のハーフトーン（波紋）を広げる。発生の判定は使う側（`/photo`）が行い、`HalftonePhoto` は渡された波紋を描くだけにした（複数の写真で同じ波紋をそろえるため。`route-photo-gallery.md` の同日の記録を参照）。
+  - `cursor.ts`: 調整値 `CURSOR_RIPPLE_SPEED_PX`（半径が広がる速度、1200 px/秒）・`CURSOR_RIPPLE_THRESHOLD`（加速度の閾値、20000 px/秒²）・`CURSOR_RIPPLE_WIDTH_PX`（リングの幅、120px）を追加した。ほかに `CURSOR_RIPPLE_MAX_RADIUS_PX`（消える半径、1000px。強さは半径 0 で 1、この半径で 0）と `CURSOR_RIPPLE_CELL_PX`（リングの中心線の格子、48px）を置いた。
+  - `cursor.ts`: `RippleDetector` を追加した。1フレームの移動から速度ベクトルを平滑化し（追従速度 20 / 秒）、その変化量を加速度とする。急発進・急停止・急な方向転換のどれでも出る。一度出たら、加速度が閾値の半分を下回るまで次は出さない。
+  - props `ripples`（`{ x, y, time }[]`。中心は canvas の左上基準の CSS px、time は発生時の `performance.now()`）・`cursorRippleSpeedPx`・`cursorRippleWidthPx` を追加した。半径は `(現在時刻 − time) × 速度` で各インスタンスが求める。生きている波紋がある間は描画を続ける。
+  - シェーダー: `u_ripples[8]`（中心・半径・強さ）・`u_rippleWidth`・`u_rippleCell` を追加した。リングの強さは中心線で 1、幅の端で 0（smoothstep）。カーソルのイージング（`cursorEasing`）は通さない。格子は移動量 m によらず `u_rippleCell` まで育てる。カーソル・軌跡と重なる所では、格子が大きくなる方を使う。格子を段階的に育てる処理は `levelDots()` に分けた（スクロールモードの計算結果は変えていない）。
+- 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出・写真詳細モーダルは変更なし。
+- 検証:
+  - `npm run check`（Node v25.4.0）: 2 errors / 23 warnings で、変更前と同じ件数（既存の `clickToCopy.js`）。`git diff --check` は問題なし。
+  - `RippleDetector` の判定（tsx で、60fps と 120fps の合成入力）: 静止、一定 600px/s と 1500px/s（移動量に ±30% のばらつき）、0.5 秒かけた加速、0→800px/s の急発進では出ない。0→2000px/s の急発進、1500px/s からの急停止、1000px/s での左右の反転では、その瞬間に1回だけ出る。60fps と 120fps で結果は同じ。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（headless、1440×900、DPR 1、SwiftShader）で `/photo` を確認した。この環境では1フレームに100ms以上かかるため、`page.clock` で時間を止めて 17ms ずつ進めた。
+    - 写真を `visibility: hidden` にしてドットだけを撮ると、4秒静止したあとの急発進（1フレーム 50px）でリングが広がる。写真の境目をまたいでも同じ円の続きとして描かれる（150ms・350ms）。
+    - マウスを動かさずに1フレーム 100px ずつスクロールしても、リングは出ない（ポインター位置のカーソル円だけ）。
+    - ギャラリーの外へ出て別の位置から戻っても、リングは出ない。
+    - console.error・pageerror・`effect disabled` は出ていない。
+  - 写真を表示した状態では、効果がかなり淡く写る。急発進から 150ms 後に、効果なしの画面から 12 階調以上変わった画素は 1,831 個（格子 24px・幅 80px では 343 個）。カーソル円そのものも同じ条件で 114 個で、原画の上に同じ色のドットを重ねる仕様によるもの。
+- 未確認事項: 実 GPU・実機での見た目と、閾値・速度・幅の既定値の調整（目視で決めた仮の値）。Visual 比較は未実施（`.visual/environment.json` のフォント照合で停止する既知の問題）。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 波紋に限界半径とイージングを追加
+
+- 変更: 波紋の進み具合 u = 経過時間 × 速度 / 限界半径（0〜1）とし、半径 = 限界半径 × ease(u)、強さ = 1 − u にした。u が 1（限界半径に到達）で消える。速度は限界半径に着くまでの平均の速さになる。従来は半径 = 経過時間 × 速度で、`CURSOR_RIPPLE_MAX_RADIUS_PX` は消える半径として内部でだけ使っていた。
+  - `cursor.ts`: `CURSOR_RIPPLE_MAX_RADIUS_PX`（1000px）を限界半径として扱い、`CURSOR_RIPPLE_EASING`（既定 `EASING_PRESETS.easeOut`）を追加した。`rippleRadius` を `rippleProgress` に置き換え、`rippleAlive` と `rippleUniforms` は限界半径とイージングを受け取るようにした。
+  - props `cursorRippleMaxRadiusPx`・`cursorRippleEasing` を追加した。`/photo` で古い波紋を捨てる判定も限界半径を使う。
+- 影響ページ: `/photo`（cursor モード）。既定値では、波紋が消える時刻（833ms）と最後の大きさ（1000px）は前回と同じで、出だしが速く終わりが遅くなる。
+- 検証:
+  - `npm run check`: 2 errors / 23 warnings で変更前と同じ件数。`git diff --check` は問題なし。
+  - `rippleUniforms` の値（tsx）: 速度 1200・限界半径 1000 で、200ms の半径は linear 240px、easeOut 364px、easeOutExpo 813px。強さはどれも 0.76。833ms で半径 1000px・強さ 0、834ms で消える。速度か限界半径が 0 のときは描かない。
+  - Playwright Chromium（`page.clock` で時間を止めて撮影、ドットだけ表示）: 急発進から 150ms 後のリングが3枚の写真にまたがって1つの円として描かれた。console.error・pageerror はなし。
+- 未確認事項: 実機・実 GPU での見た目と、イージングの既定値の好み。Visual 比較は未実施（環境照合の既知の問題）。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 波紋にクールタイムを追加
+
+- 変更: `cursor.ts` に `CURSOR_RIPPLE_COOLDOWN_MS`（500ms）を追加した。`RippleDetector` は最後に波紋を出した時刻を持ち、そこから 500ms 経つまでは閾値を超えても次を出さない。従来の「加速度が閾値の半分を下回るまで出さない」条件もそのまま残している。経過時間は `performance.now()` で数えるので、静止して判定ループが止まっている間も進む。`update()` の引数に現在時刻 `now` を追加し、`/photo` から渡す。ポインターが外れたとき（`reset()`）はクールタイムも解除する。
+- 影響ページ: `/photo`（cursor モード）。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。tsx で、1500px/s のまま左右の反転を繰り返す入力を試した。反転周期 150ms で発生は 150・750・1350・1950ms（クールタイムなしでは 150・317・750ms…）、300ms で 300・900・1500ms、600ms で 600・1200・1800ms。発生から 400ms 後の急発進では出ず、600ms 後では出る。ブラウザでの確認は未実施。
+- 関連コミット・PR: 未コミット。
