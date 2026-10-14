@@ -288,3 +288,10 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 影響ページ: `/photo`（cursor モードの使用箇所）。scroll モードと入場演出は変更なし。
 - 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードに軌跡を追加
+
+- 変更: カーソルが `CURSOR_TRAIL_SPACING_PX`（40px）進むたびに、その時点の半径（`cursorRadiusPx` × 移動量 m）で軌跡の点を置く（最大32点）。各点の半径は `cursorTrailFadeSpeed`（既定 `CURSOR_TRAIL_FADE_SPEED` = 3 / 秒）で指数的に縮み、1px未満で捨てる。シェーダーは現在位置と軌跡の全点のうち最も強い効果を使う。中心の格子は全点共通で、移動量 m による。
+- 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出は変更なし。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
+- 関連コミット・PR: 未コミット。

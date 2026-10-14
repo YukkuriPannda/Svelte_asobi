@@ -29,7 +29,7 @@
 	/** カーソルモードの縁（効果が弱い所）の格子の大きさ（CSS px） */
 	export const CURSOR_MIN_CELL_PX = 1;
 	/** カーソルモードの中心（ポインター直下）の格子の大きさ（CSS px） */
-	export const CURSOR_MAX_CELL_PX = 500;
+	export const CURSOR_MAX_CELL_PX = 100;
 	/** カーソルモードのイージング曲線（CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
 	export const CURSOR_EASING: CubicBezier = EASING_PRESETS.easeInExpo;
 	// 移動量 m（0〜1）: カーソルの速さ / CURSOR_FULL_SPEED_PX に追従する値。半径と中心の格子に掛ける。
@@ -38,6 +38,11 @@
 	export const CURSOR_FULL_SPEED_PX = 1500;
 	/** 移動量 m の追従速度（1 / 秒）。大きいほど速く追従し、静止後も速く縮む。1 秒で差が e^(−値) 倍になる */
 	export const CURSOR_FOLLOW_SPEED = 2;
+	// 軌跡: カーソルが通った点を残し、各点の半径を時間とともに縮めて消す。効果は全点（と現在位置）のうち最も強いものを使う。
+	/** 軌跡の点を置く間隔（CSS px）。カーソルがこの距離だけ進むたびに、その時点の半径で点を置く */
+	export const CURSOR_TRAIL_SPACING_PX = 40;
+	/** 軌跡が消える速さ（1 / 秒）。各点の半径は 1 秒で e^(−値) 倍になる。0 で軌跡なし */
+	export const CURSOR_TRAIL_FADE_SPEED = 3;
 
 	// 入場演出（entrance を true にしたとき、画像の読み込み直後に一度だけ再生する）。
 	// 写真の上端から下端へ前線が進み、各行の局所進行度 L（0〜1）で格子・円・原画への切り替えを決める。
@@ -110,12 +115,15 @@
 	export let cursorEasing: CubicBezier = CURSOR_EASING;
 	/** カーソルモードの移動量の追従速度（1 / 秒）。静止したときに半径と格子が 0 へ戻る速さも決める */
 	export let cursorFollowSpeed = CURSOR_FOLLOW_SPEED;
+	/** カーソルモードの軌跡が消える速さ（1 / 秒）。0 で軌跡を残さない */
+	export let cursorTrailFadeSpeed = CURSOR_TRAIL_FADE_SPEED;
 
 	const LEVELS = 5; // セルサイズの段階数。隣接段階を混ぜて連続的に育てる
 	const MAX_TEXTURE_PX = 2048;
 	const SMOOTHING = 0.25;
 	const FADE = 0.05; // 原画からクロスフェードする範囲（シェーダーと同じ値）
 	const MASK_STEPS = 8;
+	const CURSOR_TRAIL_POINTS = 32; // 軌跡として残す点の最大数（u_trail の長さ）
 	const CURSOR_CURVE_STEPS = 32; // カーソルモードの効果の強さの表の分割数（入力 x を 1/32 刻みで標本化する）
 
 	const VERTEX_SHADER = `#version 300 es
@@ -143,6 +151,8 @@ uniform float u_entranceWidth; // 入場演出の前線の幅
 uniform float u_mode; // 0.0 はスクロール（下端からの前線）、1.0 はカーソル（ポインター周りの円）
 uniform vec2 u_pointer; // カーソル位置（gl_FragCoord と同じ左下原点の device px）
 uniform float u_cursorRadius; // カーソルモードの効果半径（device px）
+uniform vec3 u_trail[${CURSOR_TRAIL_POINTS}]; // 軌跡の点 x, y（u_pointer と同じ座標系）, 半径（device px）
+uniform int u_trailCount;
 uniform float u_cursorCurve[${CURSOR_CURVE_STEPS + 1}]; // 効果の強さの表（入力 x = i / ${CURSOR_CURVE_STEPS} に対する e。cursorEasing を標本化）
 out vec4 outColor;
 
@@ -215,6 +225,12 @@ void main() {
 		// カーソル: x は縁 0 → 中心 1 の入力、e は表（cursorEasing を標本化）を線形補間した値。出入りは u_progress（スムージング値）で掛ける
 		// u_pointer は gl_FragCoord と同じ座標系なので、p ではなく gl_FragCoord.xy と比べる
 		float x = clamp(1.0 - length(gl_FragCoord.xy - u_pointer) / u_cursorRadius, 0.0, 1.0);
+		// 軌跡の各点も同じ式で求め、最も強いものを使う
+		for (int t = 0; t < ${CURSOR_TRAIL_POINTS}; t++) {
+			if (t >= u_trailCount) break;
+			vec3 point = u_trail[t];
+			x = max(x, clamp(1.0 - length(gl_FragCoord.xy - point.xy) / point.z, 0.0, 1.0));
+		}
 		float f = x * ${CURSOR_CURVE_STEPS}.0;
 		int idx = min(int(floor(f)), ${CURSOR_CURVE_STEPS - 1});
 		e = clamp(mix(u_cursorCurve[idx], u_cursorCurve[idx + 1], f - float(idx)), 0.0, 1.0);
@@ -263,6 +279,8 @@ void main() {
 	let hasPointer = false; // lastPointer が実際の位置か（最初の1回は移動量に数えない）
 	let movedPx = 0; // 前のフレームからポインターが動いた距離（CSS px）
 	let motion = 0; // 移動量 m（0〜1）。半径と中心の格子に掛ける
+	let trail: { x: number; y: number; r: number }[] = []; // 軌跡の点（CSS px、新しい順）。r は時間とともに縮む
+	const trailUniform = new Float32Array(CURSOR_TRAIL_POINTS * 3);
 	let lastStepTime = 0;
 	let cursorCurve = new Float32Array(CURSOR_CURVE_STEPS + 1); // cursorEasing を標本化した表（u_cursorCurve）
 
@@ -544,6 +562,23 @@ void main() {
 		hasPointer = true;
 	}
 
+	// 既存の点を縮めて小さくなったものを捨て、前の点から間隔以上進んでいれば現在の半径で点を置く
+	function updateTrail(dt: number) {
+		const decay = Math.exp(-Math.max(cursorTrailFadeSpeed, 0) * dt);
+		trail = trail
+			.map((point) => ({ ...point, r: point.r * decay }))
+			.filter((point) => point.r >= 1);
+		if (cursorTrailFadeSpeed <= 0 || !pointer) return;
+		const radius = cursorRadiusPx * motion;
+		const last = trail[0];
+		const far =
+			!last || Math.hypot(pointer.x - last.x, pointer.y - last.y) >= CURSOR_TRAIL_SPACING_PX;
+		if (far && radius >= 1) {
+			trail.unshift({ x: pointer.x, y: pointer.y, r: radius });
+			if (trail.length > CURSOR_TRAIL_POINTS) trail.length = CURSOR_TRAIL_POINTS;
+		}
+	}
+
 	function step() {
 		frame = 0;
 		const now = performance.now();
@@ -556,6 +591,7 @@ void main() {
 			const goal = Math.min(speed / Math.max(CURSOR_FULL_SPEED_PX, 1), 1);
 			motion += (goal - motion) * (1 - Math.exp(-Math.max(cursorFollowSpeed, 0) * dt));
 			if (goal === 0 && motion < 0.001) motion = 0;
+			updateTrail(dt);
 		}
 		if (entranceStatus === 'running') {
 			entranceT = Math.min((performance.now() - entranceStart) / ENTRANCE_DURATION_MS, 1);
@@ -570,7 +606,7 @@ void main() {
 		if (Math.abs(target - shown) < 0.001) shown = target;
 		strength = shown;
 		draw();
-		if (shown !== target || (mode === 'cursor' && motion > 0)) schedule();
+		if (shown !== target || (mode === 'cursor' && (motion > 0 || trail.length > 0))) schedule();
 	}
 
 	function smoothstep(x: number) {
@@ -701,6 +737,13 @@ void main() {
 		// 座標は gl_FragCoord と同じく左下原点の device px に直す
 		gl.uniform2f(uniform('u_pointer'), lastPointer.x * dpr, height - lastPointer.y * dpr);
 		gl.uniform1f(uniform('u_cursorRadius'), Math.max(cursorRadiusPx * motion * dpr, 0.001));
+		trail.forEach((point, i) => {
+			trailUniform[i * 3] = point.x * dpr;
+			trailUniform[i * 3 + 1] = height - point.y * dpr;
+			trailUniform[i * 3 + 2] = point.r * dpr;
+		});
+		gl.uniform3fv(uniform('u_trail'), trailUniform);
+		gl.uniform1i(uniform('u_trailCount'), cursor ? trail.length : 0);
 		gl.uniform1fv(uniform('u_cursorCurve'), cursorCurve);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);
