@@ -5,15 +5,15 @@
 	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
 	import HalftonePhoto from '$lib/components/HalftonePhoto.svelte';
 	import { CURSOR_RIPPLE_POINTS } from '$lib/halftone/common';
+	import { CURSOR_RADIUS_PX } from '$lib/halftone/cursor';
 	import {
-		CURSOR_RADIUS_PX,
 		CURSOR_RIPPLE_MAX_RADIUS_PX,
 		CURSOR_RIPPLE_SPEED_PX,
 		CURSOR_RIPPLE_THRESHOLD,
 		RippleDetector,
 		rippleAlive,
 		type CursorRipple
-	} from '$lib/halftone/cursor';
+	} from '$lib/halftone/ripple';
 	import { photoPost } from '$lib/PostData';
 	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 	import { onMount, onDestroy, tick } from 'svelte';

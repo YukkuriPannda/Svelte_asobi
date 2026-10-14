@@ -4,6 +4,18 @@ import { ENTRANCE_REVEAL_START } from './entrance';
 
 const VERTEX_SHADER = `#version 300 es
 in vec2 a_pos;
+// 効果の強さ e の所の格子の大きさ
+float cellAt(float e, vec3 dots) {
+	return dots.x * pow(dots.y / dots.x, e);
+}
+
+// x（縁 0 → 中心 1）を表（cursorEasing を標本化）で線形補間して e にする
+float cursorEase(float x) {
+	float f = x * ${CURSOR_CURVE_STEPS}.0;
+	int idx = min(int(floor(f)), ${CURSOR_CURVE_STEPS - 1});
+	return clamp(mix(u_cursorCurve[idx], u_cursorCurve[idx + 1], f - float(idx)), 0.0, 1.0);
+}
+
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
 const FRAGMENT_SHADER = `#version 300 es
@@ -32,7 +44,9 @@ uniform int u_trailCount;
 uniform vec4 u_ripples[${CURSOR_RIPPLE_POINTS}]; // 波紋の中心 x, y（u_pointer と同じ座標系）, 半径（device px）, 強さ 0〜1
 uniform int u_rippleCount;
 uniform float u_rippleWidth; // 波紋のリングの幅（device px）
-uniform float u_rippleCell; // 波紋のリングの中心線の格子（device px）
+uniform vec3 u_cursorDots; // カーソル本体のドット: 縁の格子, 中心の格子（device px、移動量 m を掛けた値）, 円の大きさ（格子に対する比率）
+uniform vec3 u_trailDots; // 軌跡のドット（並びは u_cursorDots と同じ）
+uniform vec3 u_rippleDots; // 波紋のドット: 幅の端の格子, リングの中心線の格子（device px）, 円の大きさ
 uniform float u_cursorCurve[${CURSOR_CURVE_STEPS + 1}]; // 効果の強さの表（入力 x = i / ${CURSOR_CURVE_STEPS} に対する e。cursorEasing を標本化）
 out vec4 outColor;
 
@@ -77,17 +91,29 @@ vec4 halftone(vec2 p, float cell, float maxRadius) {
 }
 
 // 効果の強さ e に応じて、格子を minCell → maxCell の LEVELS 段階で育てる（隣接段階を混ぜて連続にする）
-vec4 levelDots(vec2 p, float e, float minCell, float maxCell) {
+vec4 levelDots(vec2 p, float e, float minCell, float maxCell, float dotScale) {
 	float s = e * u_levels;
 	float i = floor(s);
 	float ratio = maxCell / minCell;
 	float cellA = minCell * pow(ratio, i / u_levels);
 	float cellB = minCell * pow(ratio, min(i + 1.0, u_levels) / u_levels);
 	return mix(
-		halftone(p, cellA, 0.70710678 * cellA * u_dotScale),
-		halftone(p, cellB, 0.70710678 * cellB * u_dotScale),
+		halftone(p, cellA, 0.70710678 * cellA * dotScale),
+		halftone(p, cellB, 0.70710678 * cellB * dotScale),
 		s - i
 	);
+}
+
+// 効果の強さ e の所の格子の大きさ
+float cellAt(float e, vec3 dots) {
+	return dots.x * pow(dots.y / dots.x, e);
+}
+
+// x（縁 0 → 中心 1）を表（cursorEasing を標本化）で線形補間して e にする
+float cursorEase(float x) {
+	float f = x * ${CURSOR_CURVE_STEPS}.0;
+	int idx = min(int(floor(f)), ${CURSOR_CURVE_STEPS - 1});
+	return clamp(mix(u_cursorCurve[idx], u_cursorCurve[idx + 1], f - float(idx)), 0.0, 1.0);
 }
 
 void main() {
@@ -115,30 +141,33 @@ void main() {
 	// 効果の強さ e（0〜1）と表示の強さ strength。スクロールは下端 d=0 から上端 d=1 へ前線が進む
 	float e;
 	float strength = 1.0;
-	float maxCell = u_maxCell;
+	vec3 dots = vec3(u_minCell, u_maxCell, u_dotScale);
 	if (u_mode > 0.5) {
-		// カーソル: x は縁 0 → 中心 1 の入力、e は表（cursorEasing を標本化）を線形補間した値。出入りは u_progress（スムージング値）で掛ける
+		// カーソル: 本体・軌跡・波紋はそれぞれ別のドットの設定を持ち、格子が最も大きくなるものを使う。出入りは u_progress（スムージング値）で掛ける
 		// u_pointer は gl_FragCoord と同じ座標系なので、p ではなく gl_FragCoord.xy と比べる
-		float x = clamp(1.0 - length(gl_FragCoord.xy - u_pointer) / u_cursorRadius, 0.0, 1.0);
-		// 軌跡の各点も同じ式で求め、最も強いものを使う
+		e = cursorEase(clamp(1.0 - length(gl_FragCoord.xy - u_pointer) / u_cursorRadius, 0.0, 1.0));
+		dots = u_cursorDots;
+		// 軌跡: 各点も本体と同じ式で求め、最も強い点を使う
+		float tx = 0.0;
 		for (int t = 0; t < ${CURSOR_TRAIL_POINTS}; t++) {
 			if (t >= u_trailCount) break;
 			vec3 point = u_trail[t];
-			x = max(x, clamp(1.0 - length(gl_FragCoord.xy - point.xy) / point.z, 0.0, 1.0));
+			tx = max(tx, clamp(1.0 - length(gl_FragCoord.xy - point.xy) / point.z, 0.0, 1.0));
 		}
-		float f = x * ${CURSOR_CURVE_STEPS}.0;
-		int idx = min(int(floor(f)), ${CURSOR_CURVE_STEPS - 1});
-		e = clamp(mix(u_cursorCurve[idx], u_cursorCurve[idx + 1], f - float(idx)), 0.0, 1.0);
-		// 波紋: リングの中心線で 1、幅の端で 0。カーソルのイージングは通さず、格子も移動量によらない u_rippleCell を使う。
-		// 格子がカーソル・軌跡より大きくなる所は波紋を使う
+		float te = cursorEase(tx);
+		if (te > 0.0 && (e <= 0.0 || cellAt(te, u_trailDots) > cellAt(e, dots))) {
+			e = te;
+			dots = u_trailDots;
+		}
+		// 波紋: リングの中心線で 1、幅の端で 0。カーソルのイージングは通さない
 		for (int r = 0; r < ${CURSOR_RIPPLE_POINTS}; r++) {
 			if (r >= u_rippleCount) break;
 			vec4 ripple = u_ripples[r];
 			float ring = 1.0 - abs(length(gl_FragCoord.xy - ripple.xy) - ripple.z) / (0.5 * u_rippleWidth);
 			float re = smoothstep(0.0, 1.0, ring) * ripple.w;
-			if (re * log(u_rippleCell / u_minCell) > e * log(maxCell / u_minCell) || (e <= 0.0 && re > 0.0)) {
+			if (re > 0.0 && (e <= 0.0 || cellAt(re, u_rippleDots) > cellAt(e, dots))) {
 				e = re;
-				maxCell = u_rippleCell;
+				dots = u_rippleDots;
 			}
 		}
 		strength = u_progress;
@@ -150,10 +179,10 @@ void main() {
 		outColor = vec4(0.0);
 		return;
 	}
-	vec4 dots = levelDots(p, e, u_minCell, maxCell);
+	vec4 dotColor = levelDots(p, e, dots.x, dots.y, dots.z);
 	float k = clamp(e / FADE, 0.0, 1.0) * strength;
 	// 黒地はセル全体を不透明にし、透過時はドットの被覆率だけを残す
-	outColor = vec4(dots.rgb, mix(1.0, dots.a, u_transparent)) * k;
+	outColor = vec4(dotColor.rgb, mix(1.0, dotColor.a, u_transparent)) * k;
 }`;
 
 function compile(context: WebGL2RenderingContext, type: number, source: string) {
