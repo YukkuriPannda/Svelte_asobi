@@ -24,6 +24,8 @@ export const CURSOR_RIPPLE_MIN_CELL_PX = 1;
 export const CURSOR_RIPPLE_CELL_PX = 10;
 /** 波紋の円の大きさ（格子に対する比率 0〜1） */
 export const CURSOR_RIPPLE_DOT_SCALE = 0.8;
+/** 波紋のボケ（CSS px）。ドットの色を取る元画像のぼかし半径。格子の半分以下では効かない */
+export const CURSOR_RIPPLE_BLUR_PX = 0;
 /** 加速度を求める前に速度を平滑化する追従速度（1 / 秒）。フレームごとの速さのばらつきを抑える */
 const RIPPLE_VELOCITY_SMOOTHING = 20;
 /** 波紋が出てから次の波紋を出せるまでのクールタイム（ms） */

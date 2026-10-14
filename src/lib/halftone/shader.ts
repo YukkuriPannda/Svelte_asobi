@@ -4,18 +4,6 @@ import { ENTRANCE_REVEAL_START } from './entrance';
 
 const VERTEX_SHADER = `#version 300 es
 in vec2 a_pos;
-// 効果の強さ e の所の格子の大きさ
-float cellAt(float e, vec3 dots) {
-	return dots.x * pow(dots.y / dots.x, e);
-}
-
-// x（縁 0 → 中心 1）を表（cursorEasing を標本化）で線形補間して e にする
-float cursorEase(float x) {
-	float f = x * ${CURSOR_CURVE_STEPS}.0;
-	int idx = min(int(floor(f)), ${CURSOR_CURVE_STEPS - 1});
-	return clamp(mix(u_cursorCurve[idx], u_cursorCurve[idx + 1], f - float(idx)), 0.0, 1.0);
-}
-
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
 const FRAGMENT_SHADER = `#version 300 es
@@ -44,9 +32,9 @@ uniform int u_trailCount;
 uniform vec4 u_ripples[${CURSOR_RIPPLE_POINTS}]; // 波紋の中心 x, y（u_pointer と同じ座標系）, 半径（device px）, 強さ 0〜1
 uniform int u_rippleCount;
 uniform float u_rippleWidth; // 波紋のリングの幅（device px）
-uniform vec3 u_cursorDots; // カーソル本体のドット: 縁の格子, 中心の格子（device px、移動量 m を掛けた値）, 円の大きさ（格子に対する比率）
-uniform vec3 u_trailDots; // 軌跡のドット（並びは u_cursorDots と同じ）
-uniform vec3 u_rippleDots; // 波紋のドット: 幅の端の格子, リングの中心線の格子（device px）, 円の大きさ
+uniform vec4 u_cursorDots; // カーソル本体のドット: 縁の格子, 中心の格子（device px、移動量 m を掛けた値）, 円の大きさ（格子に対する比率）, ボケ（色を取る元画像のぼかし半径、device px）
+uniform vec4 u_trailDots; // 軌跡のドット（並びは u_cursorDots と同じ）
+uniform vec4 u_rippleDots; // 波紋のドット: 幅の端の格子, リングの中心線の格子（device px）, 円の大きさ, ボケ
 uniform float u_cursorCurve[${CURSOR_CURVE_STEPS + 1}]; // 効果の強さの表（入力 x = i / ${CURSOR_CURVE_STEPS} に対する e。cursorEasing を標本化）
 out vec4 outColor;
 
@@ -75,14 +63,18 @@ vec3 cellColor(vec2 uv, float lod) {
 
 // 乗算済みアルファのドット（rgb = 色 × 被覆率、a = 被覆率）
 // maxRadius は最も明るい所の円の半径
-vec4 halftone(vec2 p, float cell, float maxRadius) {
+// blur は色を取る元画像のぼかし半径（device px）。格子の半分より大きいと、より粗い縮小段階から読む
+vec4 halftone(vec2 p, float cell, float maxRadius, float blur) {
 	mat2 rot = mat2(cos(ANGLE), sin(ANGLE), -sin(ANGLE), cos(ANGLE));
 	vec2 q = rot * p / cell;
 	vec2 center = floor(q) + 0.5;
 	vec2 centerPx = transpose(rot) * center * cell;
 	vec2 uv = clamp(vec2(centerPx.x / u_rect.z, 1.0 - centerPx.y / u_rect.w), 0.0, 1.0);
-	float lod = log2(max(cell * u_texScale * 0.5, 1.0));
-	vec3 color = cellColor(uv, lod);
+	float lod = log2(max(max(cell * 0.5, blur) * u_texScale, 1.0));
+	// 段階の境目で色が飛ばないよう、隣り合う2段階を混ぜる（ボケが無い所は従来どおり1段階）
+	vec3 color = blur > cell * 0.5
+		? mix(cellColor(uv, floor(lod)), cellColor(uv, floor(lod) + 1.0), fract(lod))
+		: cellColor(uv, lod);
 	// 黒地に明るい所ほど大きいドット
 	float radius = maxRadius * sqrt(luminance(color));
 	float dist = length(q - center) * cell;
@@ -91,22 +83,17 @@ vec4 halftone(vec2 p, float cell, float maxRadius) {
 }
 
 // 効果の強さ e に応じて、格子を minCell → maxCell の LEVELS 段階で育てる（隣接段階を混ぜて連続にする）
-vec4 levelDots(vec2 p, float e, float minCell, float maxCell, float dotScale) {
+vec4 levelDots(vec2 p, float e, float minCell, float maxCell, float dotScale, float blur) {
 	float s = e * u_levels;
 	float i = floor(s);
 	float ratio = maxCell / minCell;
 	float cellA = minCell * pow(ratio, i / u_levels);
 	float cellB = minCell * pow(ratio, min(i + 1.0, u_levels) / u_levels);
 	return mix(
-		halftone(p, cellA, 0.70710678 * cellA * dotScale),
-		halftone(p, cellB, 0.70710678 * cellB * dotScale),
+		halftone(p, cellA, 0.70710678 * cellA * dotScale, blur),
+		halftone(p, cellB, 0.70710678 * cellB * dotScale, blur),
 		s - i
 	);
-}
-
-// 効果の強さ e の所の格子の大きさ
-float cellAt(float e, vec3 dots) {
-	return dots.x * pow(dots.y / dots.x, e);
 }
 
 // x（縁 0 → 中心 1）を表（cursorEasing を標本化）で線形補間して e にする
@@ -134,16 +121,16 @@ void main() {
 		}
 		float cell = u_entranceCoarse * pow(u_entranceFine / u_entranceCoarse, L);
 		// 円は格子を超えない（半径は格子の半分まで）
-		vec4 entranceDots = halftone(p, cell, min(0.5 * u_entranceDot * L, 0.5 * cell));
+		vec4 entranceDots = halftone(p, cell, min(0.5 * u_entranceDot * L, 0.5 * cell), 0.0);
 		outColor = entranceDots * fade;
 		return;
 	}
 	// 効果の強さ e（0〜1）と表示の強さ strength。スクロールは下端 d=0 から上端 d=1 へ前線が進む
 	float e;
 	float strength = 1.0;
-	vec3 dots = vec3(u_minCell, u_maxCell, u_dotScale);
+	vec4 dots = vec4(u_minCell, u_maxCell, u_dotScale, 0.0);
 	if (u_mode > 0.5) {
-		// カーソル: 本体・軌跡・波紋はそれぞれ別のドットの設定を持ち、格子が最も大きくなるものを使う。出入りは u_progress（スムージング値）で掛ける
+		// カーソル: 本体・軌跡・波紋はそれぞれ別のドットの設定を持ち、効果の強さ e が最も大きいものを使う（格子の大きさで比べると、格子の小さい設定が常に負けて見えなくなる）。出入りは u_progress（スムージング値）で掛ける
 		// u_pointer は gl_FragCoord と同じ座標系なので、p ではなく gl_FragCoord.xy と比べる
 		e = cursorEase(clamp(1.0 - length(gl_FragCoord.xy - u_pointer) / u_cursorRadius, 0.0, 1.0));
 		dots = u_cursorDots;
@@ -155,7 +142,7 @@ void main() {
 			tx = max(tx, clamp(1.0 - length(gl_FragCoord.xy - point.xy) / point.z, 0.0, 1.0));
 		}
 		float te = cursorEase(tx);
-		if (te > 0.0 && (e <= 0.0 || cellAt(te, u_trailDots) > cellAt(e, dots))) {
+		if (te > e) {
 			e = te;
 			dots = u_trailDots;
 		}
@@ -165,7 +152,7 @@ void main() {
 			vec4 ripple = u_ripples[r];
 			float ring = 1.0 - abs(length(gl_FragCoord.xy - ripple.xy) - ripple.z) / (0.5 * u_rippleWidth);
 			float re = smoothstep(0.0, 1.0, ring) * ripple.w;
-			if (re > 0.0 && (e <= 0.0 || cellAt(re, u_rippleDots) > cellAt(e, dots))) {
+			if (re > e) {
 				e = re;
 				dots = u_rippleDots;
 			}
@@ -179,7 +166,7 @@ void main() {
 		outColor = vec4(0.0);
 		return;
 	}
-	vec4 dotColor = levelDots(p, e, dots.x, dots.y, dots.z);
+	vec4 dotColor = levelDots(p, e, dots.x, dots.y, dots.z, dots.w);
 	float k = clamp(e / FADE, 0.0, 1.0) * strength;
 	// 黒地はセル全体を不透明にし、透過時はドットの被覆率だけを残す
 	outColor = vec4(dotColor.rgb, mix(1.0, dotColor.a, u_transparent)) * k;

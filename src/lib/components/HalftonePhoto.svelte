@@ -20,6 +20,7 @@
 	import {
 		CURSOR_DOT_SCALE,
 		CURSOR_EASING,
+		CURSOR_BLUR_PX,
 		CURSOR_FOLLOW_SPEED,
 		CURSOR_MAX_CELL_PX,
 		CURSOR_MIN_CELL_PX,
@@ -31,6 +32,7 @@
 		CURSOR_RIPPLE_CELL_PX,
 		CURSOR_RIPPLE_DOT_SCALE,
 		CURSOR_RIPPLE_EASING,
+		CURSOR_RIPPLE_BLUR_PX,
 		CURSOR_RIPPLE_MAX_RADIUS_PX,
 		CURSOR_RIPPLE_MIN_CELL_PX,
 		CURSOR_RIPPLE_SPEED_PX,
@@ -41,6 +43,7 @@
 	} from '$lib/halftone/ripple';
 	import {
 		CURSOR_TRAIL_DOT_SCALE,
+		CURSOR_TRAIL_BLUR_PX,
 		CURSOR_TRAIL_FADE_SPEED,
 		CURSOR_TRAIL_MAX_CELL_PX,
 		CURSOR_TRAIL_MIN_CELL_PX
@@ -83,6 +86,8 @@
 	export let cursorMaxCellPx = CURSOR_MAX_CELL_PX;
 	/** カーソルモードの円の大きさ（格子に対する比率 0〜1） */
 	export let cursorDotScale = CURSOR_DOT_SCALE;
+	/** カーソルモードのボケ（CSS px）。ドットの色を取る元画像のぼかし半径 */
+	export let cursorBlurPx = CURSOR_BLUR_PX;
 	/** カーソルモードの効果の強さのイージング（cubic-bezier）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
 	export let cursorEasing: CubicBezier = CURSOR_EASING;
 	/** カーソルモードの移動量の追従速度（1 / 秒）。静止したときに半径と格子が 0 へ戻る速さも決める */
@@ -95,6 +100,8 @@
 	export let cursorTrailMaxCellPx = CURSOR_TRAIL_MAX_CELL_PX;
 	/** 軌跡の円の大きさ（格子に対する比率 0〜1） */
 	export let cursorTrailDotScale = CURSOR_TRAIL_DOT_SCALE;
+	/** 軌跡のボケ（CSS px）。ドットの色を取る元画像のぼかし半径 */
+	export let cursorTrailBlurPx = CURSOR_TRAIL_BLUR_PX;
 	/** カーソルモードの波紋（中心は canvas の左上基準の CSS px、time は発生時の performance.now()）。発生の判定は使う側が行う */
 	export let ripples: CursorRipple[] = [];
 	/** カーソルモードの波紋の半径が広がる速度（CSS px / 秒）。限界半径に着くまでの平均の速さ */
@@ -111,6 +118,8 @@
 	export let cursorRippleCellPx = CURSOR_RIPPLE_CELL_PX;
 	/** 波紋の円の大きさ（格子に対する比率 0〜1） */
 	export let cursorRippleDotScale = CURSOR_RIPPLE_DOT_SCALE;
+	/** 波紋のボケ（CSS px）。ドットの色を取る元画像のぼかし半径 */
+	export let cursorRippleBlurPx = CURSOR_RIPPLE_BLUR_PX;
 
 	const SMOOTHING = 0.25;
 
@@ -164,9 +173,11 @@
 		cursorMinCellPx,
 		cursorMaxCellPx,
 		cursorDotScale,
+		cursorBlurPx,
 		cursorTrailMinCellPx,
 		cursorTrailMaxCellPx,
 		cursorTrailDotScale,
+		cursorTrailBlurPx,
 		cursorCurve,
 		ripples,
 		cursorRippleSpeedPx,
@@ -176,6 +187,7 @@
 		cursorRippleMinCellPx,
 		cursorRippleCellPx,
 		cursorRippleDotScale,
+		cursorRippleBlurPx,
 		schedule();
 	// 読み込みを待つ間は原画を隠し、読み込みが終わってから入場演出を始める
 	$: if (entranceStatus === 'pending' && photo) setPhotoMask(HIDDEN_MASK);
@@ -321,12 +333,17 @@
 		gl.uniform4fv(uniform('u_ripples'), ripple.values);
 		gl.uniform1i(uniform('u_rippleCount'), cursor ? ripple.count : 0);
 		gl.uniform1f(uniform('u_rippleWidth'), Math.max(cursorRippleWidthPx * dpr, 0.001));
-		// ドットの設定（縁の格子, 中心の格子, 円の大きさ）。格子は 0 にしない（比を取るため）
-		const dots = (min: number, max: number, scale: number) =>
-			[Math.max(min, 0.01) * dpr, Math.max(max, min, 0.01) * dpr, Math.min(Math.max(scale, 0), 1)] as const;
-		gl.uniform3f(uniform('u_cursorDots'), ...dots(cursorMinCellPx, cursorMaxCellPx * motion, cursorDotScale));
-		gl.uniform3f(uniform('u_trailDots'), ...dots(cursorTrailMinCellPx, cursorTrailMaxCellPx * motion, cursorTrailDotScale));
-		gl.uniform3f(uniform('u_rippleDots'), ...dots(cursorRippleMinCellPx, cursorRippleCellPx, cursorRippleDotScale));
+		// ドットの設定（縁の格子, 中心の格子, 円の大きさ, ボケ）。格子は 0 にしない（比を取るため）
+		const dots = (min: number, max: number, scale: number, blur: number) =>
+			[
+				Math.max(min, 0.01) * dpr,
+				Math.max(max, min, 0.01) * dpr,
+				Math.min(Math.max(scale, 0), 1),
+				Math.max(blur, 0) * dpr
+			] as const;
+		gl.uniform4f(uniform('u_cursorDots'), ...dots(cursorMinCellPx, cursorMaxCellPx * motion, cursorDotScale, cursorBlurPx));
+		gl.uniform4f(uniform('u_trailDots'), ...dots(cursorTrailMinCellPx, cursorTrailMaxCellPx * motion, cursorTrailDotScale, cursorTrailBlurPx));
+		gl.uniform4f(uniform('u_rippleDots'), ...dots(cursorRippleMinCellPx, cursorRippleCellPx, cursorRippleDotScale, cursorRippleBlurPx));
 		gl.uniform1fv(uniform('u_cursorCurve'), cursorCurve);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);
