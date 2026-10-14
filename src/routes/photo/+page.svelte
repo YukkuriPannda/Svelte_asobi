@@ -5,15 +5,15 @@
 	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
 	import HalftonePhoto from '$lib/components/HalftonePhoto.svelte';
 	import { CURSOR_RIPPLE_POINTS } from '$lib/halftone/common';
+	import { CURSOR_RADIUS_PX } from '$lib/halftone/cursor';
 	import {
-		CURSOR_RADIUS_PX,
 		CURSOR_RIPPLE_MAX_RADIUS_PX,
 		CURSOR_RIPPLE_SPEED_PX,
 		CURSOR_RIPPLE_THRESHOLD,
 		RippleDetector,
 		rippleAlive,
 		type CursorRipple
-	} from '$lib/halftone/cursor';
+	} from '$lib/halftone/ripple';
 	import { photoPost } from '$lib/PostData';
 	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -406,19 +406,27 @@
 	.body {
 		width: 60vw;
 		margin: auto;
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
+		// Pinterest 風の石積み配置: 列幅を揃え、高さの違う写真を各列に上から詰める
+		column-width: 236px;
+		column-gap: 16px;
+		padding: 16px;
+		box-sizing: border-box;
 		filter: blur(0px);
 		transition: filter 0.3s ease-in-out;
 		background-color: white;
 	}
 	.photoPost {
-		display: flex;
-		width: 256px;
-		max-width: calc(100% - 40px);
-		margin: 20px;
-		align-items: center;
+		display: block;
+		margin: 0 0 16px;
+		break-inside: avoid;
+		button {
+			display: block;
+			width: 100%;
+			padding: 0;
+			border: 0;
+			background: none;
+			cursor: zoom-in;
+		}
 		img {
 			width: 100%;
 			height: auto;
@@ -443,6 +451,12 @@
 	@media (max-width: 600px) {
 		.body {
 			width: 100%;
+			column-width: 160px;
+			column-gap: 8px;
+			padding: 8px;
+		}
+		.photoPost {
+			margin-bottom: 8px;
 		}
 	}
 	.modal {

@@ -348,3 +348,56 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 影響ページ: `/photo`（cursor モード）。
 - 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。tsx で、1500px/s のまま左右の反転を繰り返す入力を試した。反転周期 150ms で発生は 150・750・1350・1950ms（クールタイムなしでは 150・317・750ms…）、300ms で 300・900・1500ms、600ms で 600・1200・1800ms。発生から 400ms 後の急発進では出ず、600ms 後では出る。ブラウザでの確認は未実施。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-14 波紋と軌跡の調整値を別モジュールに分割
+
+- 状態: リファクタリング（型チェックのみ。挙動・値の変更なし）
+- 目的・受け入れ条件: カーソルモードの基本・波紋・軌跡の調整値を、別々のファイルで調整できるようにすること。
+- 変更内容・対象ファイル:
+  - `src/lib/halftone/ripple.ts`（新規）: 波紋の調整値（`CURSOR_RIPPLE_*`）、`CursorRipple`、`rippleProgress`・`rippleAlive`・`RippleDetector`・`rippleUniforms`。
+  - `src/lib/halftone/trail.ts`（新規）: 軌跡の調整値（`CURSOR_TRAIL_SPACING_PX`・`CURSOR_TRAIL_FADE_SPEED`）。軌跡の計算は `cursor.ts` の `CursorMotion` に残す（移動量 m と一緒に更新するため）。
+  - `src/lib/halftone/cursor.ts`: 上記を除いた残り。`Point` を export。
+  - import 先の変更: `src/lib/components/HalftonePhoto.svelte`、`src/routes/photo/+page.svelte`。
+- 影響するページ・表示バリエーション: なし（値と処理は移動しただけ）。
+- 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any）のみ。Visual は環境照合エラーで未実行。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソル本体・軌跡・波紋のドットの設定を分割
+
+- 状態: 実装（型チェックのみ。シェーダーのコンパイルと見た目は未確認）
+- 目的・受け入れ条件: ドットの格子・円の大きさを、カーソル本体・軌跡・波紋で別々に調整できること。既定値では今までと同じ見た目になること。
+- 変更内容・対象ファイル:
+  - 調整値: `cursor.ts` に `CURSOR_DOT_SCALE`、`trail.ts` に `CURSOR_TRAIL_MIN_CELL_PX`・`CURSOR_TRAIL_MAX_CELL_PX`・`CURSOR_TRAIL_DOT_SCALE`、`ripple.ts` に `CURSOR_RIPPLE_MIN_CELL_PX`・`CURSOR_RIPPLE_DOT_SCALE`（中心線の格子は既存の `CURSOR_RIPPLE_CELL_PX`）。既定値は本体と同じ（1 / 50 / 0.8、波紋の中心線は 48）。
+  - props: `cursorDotScale`、`cursorTrailMinCellPx`・`cursorTrailMaxCellPx`・`cursorTrailDotScale`、`cursorRippleMinCellPx`・`cursorRippleCellPx`・`cursorRippleDotScale`。
+  - シェーダー（`shader.ts`）: `u_cursorDots`・`u_trailDots`・`u_rippleDots`（縁の格子, 中心の格子, 円の大きさ）を追加し、`u_rippleCell` を廃止。本体・軌跡・波紋の e をそれぞれ求め、格子が最も大きくなるものを使う。`u_minCell`・`u_maxCell`・`u_dotScale` はスクロールモード専用になった。
+  - 挙動の差: これまでカーソルモードの円の大きさは `dotScale` を使っていたが、`cursorDotScale` などを使う。本体と軌跡は、同じ設定なら従来（x の最大を取る）と同じ結果。
+- 影響するページ・表示バリエーション: `/photo` 一覧のカーソルモード。
+- 検証: `npm run check` は既存の2エラーのみ。
+- 未確認事項: ブラウザでのシェーダーのコンパイルと見た目、Visual。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 シェーダーのコンパイルエラーと波紋が出ない問題の修正
+
+- 状態: 修正（開発サーバーの Chromium で確認）
+- 現象: カーソルモードで波紋が出ない（実際はエフェクト全体が無効）。コンソールに `HalftonePhoto: effect disabled Error: 'u_cursorCurve' : undeclared identifier`。
+- 原因:
+  1. 前回の分割で追加した `cursorEase` などの関数を、置換の誤りで頂点シェーダーに入れていた。コンパイルに失敗し、エフェクト全体が無効になっていた。
+  2. 本体・軌跡・波紋のうち「格子が最も大きいもの」を使う判定だったため、波紋の格子（`CURSOR_RIPPLE_CELL_PX` = 10）が本体（最大 50 × m）より小さいと、波紋が常に負けて見えなくなる。
+- 変更内容: 関数をフラグメントシェーダーへ移し、使っていない `cellAt` を削除。判定を「効果の強さ e が最も大きいもの」に変えた（`shader.ts`、`trail.ts` のコメント）。
+- 検証: `npm run check` は既存の2エラーのみ。開発サーバー（Chromium）で合成した `pointermove` を送り、コンパイルエラーが出ないこと、`drawArrays` の直後に読み取った画素で、ポインターから 220〜300px に塗りの割合の山（リング状）があることを確認した。Chrome 拡張のスクリーンショットには WebGL の描画が写らず、目視はしていない。
+- 未確認事項: 実際のマウス操作での見た目。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソル本体・軌跡・波紋に元画像のボケを追加
+
+- 状態: 実装（型チェック、開発サーバーの Chromium でシェーダーのコンパイルと描画を確認）
+- 目的・受け入れ条件: ドットの色を取る元画像のぼかし（ボケ）を、カーソル本体・軌跡・波紋で別々に調整できること。既定値では見た目を変えないこと。
+- 経緯: 先に効果ごとのフェード幅（原画 → ドットの切り替わり範囲）を追加したが、求められていたのは写真自体のボケだったため、置き換えた。フェード幅は全モード共通の `FADE` に戻した。
+- 変更内容・対象ファイル:
+  - 調整値: `cursor.ts` に `CURSOR_BLUR_PX`、`trail.ts` に `CURSOR_TRAIL_BLUR_PX`、`ripple.ts` に `CURSOR_RIPPLE_BLUR_PX`（CSS px、既定値 0）。props は `cursorBlurPx`・`cursorTrailBlurPx`・`cursorRippleBlurPx`。
+  - シェーダー: `u_cursorDots`・`u_trailDots`・`u_rippleDots` を vec4 にし、4番目をボケ（device px）にした。`halftone()` に `blur` 引数を追加し、ボケが格子の半分より大きいときは、ボケの半径に合う縮小段階（ミップマップ）から色を取る。段階の境目で色が飛ばないよう、隣り合う2段階を混ぜる。スクロールモードと入場演出はボケ 0。
+  - 縮小段階は箱型の縮小なので、ガウスぼかしのような滑らかなボケではない。
+- 影響するページ・表示バリエーション: `/photo` 一覧のカーソルモード（既定値 0 では変化なし）。
+- 検証: `npm run check` は既存の2エラーのみ。開発サーバーで合成した `pointermove` を送り、コンパイルエラーが出ないこと、canvas 9件で描画が続くことを確認した。
+- 未確認事項: ボケを 0 より大きくしたときの見た目。
+- 関連コミット・PR: 未コミット。

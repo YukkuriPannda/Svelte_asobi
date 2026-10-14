@@ -211,3 +211,13 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - 検証: `HalftonePhoto.md` の同日の記録を参照。
 - 未確認事項: 実機・実 GPU での見た目と既定値の調整。HalftonePhoto の `cursorRippleSpeedPx` を既定値から変えた場合、一覧側で古い波紋を捨てる判定（`CURSOR_RIPPLE_SPEED_PX` を使う）とずれる。現在は既定値のみ使っている。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-14 Pinterest 風の石積み配置
+
+- 状態: 実装（型チェックのみ。Visual は環境照合で未実行）
+- 目的・受け入れ条件: 写真一覧を Pinterest のように隙間なく詰めて並べること。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte`。`.body` を flex の折り返しから CSS `columns`（列幅 236px、間隔 16px、幅は従来の 60vw のまま）に変更。`.photoPost` は `break-inside: avoid` で列をまたがせず、ボタンを全幅にした。600px 以下は全幅・列幅 160px・間隔 8px。
+- 影響するページ・表示バリエーション: `/photo` 一覧のレイアウト（列数・写真サイズ・並び順）。並び順は左→右から上→下（列ごと）に変わる。詳細モーダルは変更なし。
+- 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any、変更前から発生）のみ。Visual は環境を再採取して全 baseline を再生成し、通常比較 93/93 成功（`.visual/README.md` 参照）。
+- 未確認事項: カーソルエフェクトとの重なり（マウス操作時）。
+- 関連コミット・PR: 未コミット。
