@@ -231,3 +231,173 @@ npx playwright test tests/visual/photo-images.spec.ts
   - 入場 0.2 秒と、`.modal` の opacity（0.3 秒のフェード）が重なる。
   - 写真の切り替え（スワイプ・矢印）では `{#key open_photo_id}` によりコンポーネントが作り直されるため、切り替えごとに入場演出が再生される。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-14 — カーソルモード（ポインター周りの円形範囲だけにエフェクト）
+
+- 状態: 実装（型チェックと開発サーバーでの Chromium 確認のみ。Visual は環境照合で未実行）
+- 目的・受け入れ条件: `mode="cursor"` のとき、ポインター周りの円形の範囲だけにハーフトーンをかける。ポインター直下ほど格子が大きく、半径の外では原画が見えること。効果は写真の表示領域の内側に限ること。既定のスクロールモードの挙動は変えないこと。
+- 変更内容・対象ファイル: `src/lib/components/HalftonePhoto.svelte` のみ。
+  - module script に定数 `CURSOR_RADIUS_PX`（110）・`CURSOR_MIN_CELL_PX`（4）・`CURSOR_MAX_CELL_PX`（18）を追加。
+  - props に `mode`（既定 `'scroll'`）・`pointer`（既定 null）・`cursorRadiusPx`・`cursorMinCellPx`・`cursorMaxCellPx` を追加。
+  - cursor のとき target = pointer ? 1 : 0 とし、既存の shown のスムージングで出入りする。progress・easing・end は使わない。`pointer` が変わると再描画する。
+  - シェーダーに uniform `u_mode`・`u_pointer`（gl_FragCoord と同じ左下原点の device px）・`u_cursorRadius` を追加。cursor の効果の強さは e = 1 − smoothstep(0, 1, |gl_FragCoord.xy − u_pointer| / 半径)、表示の強さは u_progress（= shown）で、k = clamp(e / FADE) × 表示の強さ。格子は既存の cellA/cellB の段階混合を cursor 用の minCell→maxCell で使い、円は既存の式（0.70710678 × cell × dotScale）。`halftone()`・`cellColor()` は変更なし。
+  - カーソルモードでは原画にマスクをかけず、ドットを原画の上に重ねるだけにする（ユーザー指示で放射状マスクを撤去。`photo` には `clearMask()` だけを行う）。`updateMask` / `updateEntranceMask` は変更なし。
+  - cursor のとき `entrance` は無視する（入場演出とは併用しない）。
+- props・依存コンポーネントへの影響: 追加のみ。既定値（`mode = 'scroll'`）では従来と同じ描画経路。`PhotoDetailModal.svelte` と `PhotoDetailModal-mobile.svelte` は変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧で、マウスが乗っているタイル（`route-photo-gallery.md` 参照）。写真詳細モーダルの表示は変更なし。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。件数は変更前と同じで、HalftonePhoto に関する指摘はなし。
+  - `npm run visual -- --grep 'page:photo(?: |-)'`: 実行前の環境照合で停止。`fontsSha256` が固定値 `67e79a…` と一致せず、このマシンでは `50c75f…`。テストは未実行。`.visual/environment.json` と baseline は変更していない。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（1440×900、DPR 1）で `/photo` を確認。タイルの中心にホバーすると canvas が1つ、大きさはタイルと一致。中心と縁のスクリーンショットで、円形の範囲だけに格子が出て、格子は中心ほど大きく、写真の外には出ないことを目視確認。reduced motion とタッチ入力（CDP）では canvas は0。pageerror と console.error はなし。
+  - 写真詳細モーダルの表示は、この確認の対象外。
+- Visual Diffの確認・baseline更新の有無: 未実施（上記の環境照合で停止）。baseline 更新なし。
+- 未確認事項・残課題:
+  - 実機（iOS Safari・Android Chrome）と実 GPU での描画は未確認。
+  - `CURSOR_*` の値（半径 110、格子 4〜18px）は目視での仮の値。
+  - 透過時、円の隙間には一覧の背景（白）が見える。
+  - ポインターを動かさずにスクロールしたときに円の位置が追従するかは未確認（route 側で `pointerenter` の再発火に依存）。
+  - `u_pointer` は gl_FragCoord と同じ座標系で持ち、距離も gl_FragCoord.xy と比べる。契約の `p − u_pointer` を、この座標系の差として実装した。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-14 — カーソル円の効果の強さを cubic-bezier で指定（`cursorEasing`）、同じ写真の縮小結果をキャッシュ
+
+- 状態: 実装（型チェック、node での表の確認、開発サーバーの Chromium 確認。Visual は環境照合で未実行）
+- 目的・受け入れ条件: カーソルモードで、中心からの距離による効果の強さのイージングを cubic-bezier で指定できること（既定は `EASING_PRESETS.easeInOut`）。複数のタイルを繰り返しマウントしても、同じ写真の取得と縮小を繰り返さないこと。スクロールモード・入場演出・既存 props の既定値は変えないこと。
+- 変更内容・対象ファイル: `src/lib/components/HalftonePhoto.svelte` のみ。
+  - module script に `CURSOR_EASING`（`EASING_PRESETS.easeInOut`）を追加した。props に `cursorEasing`（既定 `CURSOR_EASING`）を追加した。
+  - カーソルの効果の強さを、x = clamp(1 − 距離 / 半径, 0, 1)（縁 0、中心 1）、e = clamp(ease(x), 0, 1) に変えた。従来の `1 − smoothstep(0, 1, 距離 / 半径)` は置き換えた。
+  - `sampleCursorCurve(cursorEasing)` が、x = i / 32（i = 0〜32）の 33 点を既存の `cubicBezier()` で標本化し、`uniform float u_cursorCurve[33]` として渡す。シェーダーは x × 32 の位置を線形補間して e を求める。`cursorEasing` が変わると表を作り直して再描画する。
+  - 取得と縮小を `prepareImage`（fetch → createImageBitmap → 縮小 → `buildLevels`）に分けた。`mode="cursor"` のときだけ module の `cursorImageCache`（src → Promise）を使う。キャッシュがあれば fetch と `buildLevels` を省略し、テクスチャ転送だけ行う。取得に失敗したものはキャッシュから外し、次回に取り直す。Promise を保持するので、同じ src を同時に読むインスタンスがあっても取得は1回になる。scroll モードと入場演出は従来どおり毎回取得する。
+  - 前回の記録の定数値（`CURSOR_RADIUS_PX` 110、`CURSOR_MIN_CELL_PX` 4、`CURSOR_MAX_CELL_PX` 18）と、現在のコードの値（500 / 1 / 10）が一致していなかった。この記録は現在のコードの値を前提にしている。値を変えた経緯は未確認。
+- props・依存コンポーネントへの影響: `cursorEasing` を追加した。既存 props の既定値と、scroll・入場演出の描画経路は変更なし。`PhotoDetailModal.svelte` と `PhotoDetailModal-mobile.svelte` は変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧のカーソル円（`route-photo-gallery.md` の 2026-10-14 の記録を参照）。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js` の implicit any のみ）、警告23件。`HalftonePhoto.svelte` の警告は0件。`photo/+page.svelte` の警告は5件で、いずれもモーダルの `on:click` 要素（a11y 警告2組）と未使用セレクタ `n :global(body)`。今回の変更で増えたものはない。
+  - 表の確認（node。`cubicBezier.ts` を esbuild で変換して実行）: easeInOut・easeOut・easeOutExpo・linear の 33 点はいずれも単調増加で、端点は 0 と 1。x = 0.5 の e は easeInOut が 0.5000、easeOutExpo が 0.9718 で、異なる値になることを確認。x = 0.1 の e は easeInOut 0.0201、easeOutExpo 0.4925。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（1440×900、DPR 1）で `/photo` を確認。同じ写真に出入りを2回しても `fetch` は1回だった（キャッシュ有効）。`cursorEasing` を実際に変えたブラウザ確認は行っていない（表の数値のみ）。
+- Visual Diffの確認・baseline更新の有無: 未実施（環境照合で停止）。baseline 更新なし。
+- 未確認事項・残課題:
+  - 実機（iOS Safari・Android Chrome）と実 GPU での描画は未確認。
+  - 縮小結果のキャッシュはページの生存中保持し、上限を設けていない。件数が多い場合のメモリは未評価。
+  - 既定の easeInOut での見た目（効果の強さの形）は目視していない。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードの半径と格子をカーソルの移動量に追従させる
+
+- 変更: カーソルの速さ / `CURSOR_FULL_SPEED_PX`（1500 px/秒）を目標値とする移動量 m（0〜1）を追加し、`cursorRadiusPx` と `cursorMaxCellPx` に掛ける（格子は `cursorMinCellPx` を下限にする）。m は追従速度 `cursorFollowSpeed`（既定 `CURSOR_FOLLOW_SPEED` = 2 / 秒）で指数的に近づき、静止すると 0 へゆっくり戻る。m が 0 になるまで描画を続ける。
+- 影響ページ: `/photo`（cursor モードの使用箇所）。scroll モードと入場演出は変更なし。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードに軌跡を追加
+
+- 変更: カーソルが `CURSOR_TRAIL_SPACING_PX`（40px）進むたびに、その時点の半径（`cursorRadiusPx` × 移動量 m）で軌跡の点を置く（最大32点）。各点の半径は `cursorTrailFadeSpeed`（既定 `CURSOR_TRAIL_FADE_SPEED` = 3 / 秒）で指数的に縮み、1px未満で捨てる。シェーダーは現在位置と軌跡の全点のうち最も強い効果を使う。中心の格子は全点共通で、移動量 m による。
+- 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出は変更なし。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 モードごとにモジュールを分割
+
+- 変更: 777行あった `HalftonePhoto.svelte` から、調整値と計算を `src/lib/halftone/` へ移した。コンポーネントは props・状態・描画の組み立てだけを持つ（約290行）。props と表示は変更なし。
+  - `scroll.ts`: スクロールモードの調整値（`EFFECT_*`、`MAX/MIN_CELL_PX`、`GRADIENT_WIDTH`、`TRANSPARENT_BACKGROUND`、`DOT_SCALE`）と元写真のマスク。
+  - `cursor.ts`: カーソルモードの調整値（`CURSOR_*`）、効果の強さの表、移動量と軌跡を更新する `CursorMotion`。
+  - `entrance.ts`: 入場演出の調整値（`ENTRANCE_*`）と原画のマスク。
+  - `image.ts`: 画像の取得、キーカラーを保持する縮小段階、キャッシュ、テクスチャ転送。
+  - `shader.ts`: WebGL2 のシェーダーとプログラムの作成。`common.ts`: 共有する値と smoothstep。
+- 調整値の import 元が変わった。`/photo` の `CURSOR_RADIUS_PX` は `$lib/halftone/cursor` から読む。
+- 影響ページ: `/photo`（cursor）、写真詳細のPC・モバイル（entrance / scroll）。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。`npm run build` 成功。ブラウザでの目視・Visual比較は未実施（`.visual/environment.json` のフォント照合で停止する既知の問題）。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードに加速度で発生する波紋を追加
+
+- 変更: カーソルの加速度が閾値を超えた瞬間に、その位置からリング状のハーフトーン（波紋）を広げる。発生の判定は使う側（`/photo`）が行い、`HalftonePhoto` は渡された波紋を描くだけにした（複数の写真で同じ波紋をそろえるため。`route-photo-gallery.md` の同日の記録を参照）。
+  - `cursor.ts`: 調整値 `CURSOR_RIPPLE_SPEED_PX`（半径が広がる速度、1200 px/秒）・`CURSOR_RIPPLE_THRESHOLD`（加速度の閾値、20000 px/秒²）・`CURSOR_RIPPLE_WIDTH_PX`（リングの幅、120px）を追加した。ほかに `CURSOR_RIPPLE_MAX_RADIUS_PX`（消える半径、1000px。強さは半径 0 で 1、この半径で 0）と `CURSOR_RIPPLE_CELL_PX`（リングの中心線の格子、48px）を置いた。
+  - `cursor.ts`: `RippleDetector` を追加した。1フレームの移動から速度ベクトルを平滑化し（追従速度 20 / 秒）、その変化量を加速度とする。急発進・急停止・急な方向転換のどれでも出る。一度出たら、加速度が閾値の半分を下回るまで次は出さない。
+  - props `ripples`（`{ x, y, time }[]`。中心は canvas の左上基準の CSS px、time は発生時の `performance.now()`）・`cursorRippleSpeedPx`・`cursorRippleWidthPx` を追加した。半径は `(現在時刻 − time) × 速度` で各インスタンスが求める。生きている波紋がある間は描画を続ける。
+  - シェーダー: `u_ripples[8]`（中心・半径・強さ）・`u_rippleWidth`・`u_rippleCell` を追加した。リングの強さは中心線で 1、幅の端で 0（smoothstep）。カーソルのイージング（`cursorEasing`）は通さない。格子は移動量 m によらず `u_rippleCell` まで育てる。カーソル・軌跡と重なる所では、格子が大きくなる方を使う。格子を段階的に育てる処理は `levelDots()` に分けた（スクロールモードの計算結果は変えていない）。
+- 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出・写真詳細モーダルは変更なし。
+- 検証:
+  - `npm run check`（Node v25.4.0）: 2 errors / 23 warnings で、変更前と同じ件数（既存の `clickToCopy.js`）。`git diff --check` は問題なし。
+  - `RippleDetector` の判定（tsx で、60fps と 120fps の合成入力）: 静止、一定 600px/s と 1500px/s（移動量に ±30% のばらつき）、0.5 秒かけた加速、0→800px/s の急発進では出ない。0→2000px/s の急発進、1500px/s からの急停止、1000px/s での左右の反転では、その瞬間に1回だけ出る。60fps と 120fps で結果は同じ。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（headless、1440×900、DPR 1、SwiftShader）で `/photo` を確認した。この環境では1フレームに100ms以上かかるため、`page.clock` で時間を止めて 17ms ずつ進めた。
+    - 写真を `visibility: hidden` にしてドットだけを撮ると、4秒静止したあとの急発進（1フレーム 50px）でリングが広がる。写真の境目をまたいでも同じ円の続きとして描かれる（150ms・350ms）。
+    - マウスを動かさずに1フレーム 100px ずつスクロールしても、リングは出ない（ポインター位置のカーソル円だけ）。
+    - ギャラリーの外へ出て別の位置から戻っても、リングは出ない。
+    - console.error・pageerror・`effect disabled` は出ていない。
+  - 写真を表示した状態では、効果がかなり淡く写る。急発進から 150ms 後に、効果なしの画面から 12 階調以上変わった画素は 1,831 個（格子 24px・幅 80px では 343 個）。カーソル円そのものも同じ条件で 114 個で、原画の上に同じ色のドットを重ねる仕様によるもの。
+- 未確認事項: 実 GPU・実機での見た目と、閾値・速度・幅の既定値の調整（目視で決めた仮の値）。Visual 比較は未実施（`.visual/environment.json` のフォント照合で停止する既知の問題）。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 波紋に限界半径とイージングを追加
+
+- 変更: 波紋の進み具合 u = 経過時間 × 速度 / 限界半径（0〜1）とし、半径 = 限界半径 × ease(u)、強さ = 1 − u にした。u が 1（限界半径に到達）で消える。速度は限界半径に着くまでの平均の速さになる。従来は半径 = 経過時間 × 速度で、`CURSOR_RIPPLE_MAX_RADIUS_PX` は消える半径として内部でだけ使っていた。
+  - `cursor.ts`: `CURSOR_RIPPLE_MAX_RADIUS_PX`（1000px）を限界半径として扱い、`CURSOR_RIPPLE_EASING`（既定 `EASING_PRESETS.easeOut`）を追加した。`rippleRadius` を `rippleProgress` に置き換え、`rippleAlive` と `rippleUniforms` は限界半径とイージングを受け取るようにした。
+  - props `cursorRippleMaxRadiusPx`・`cursorRippleEasing` を追加した。`/photo` で古い波紋を捨てる判定も限界半径を使う。
+- 影響ページ: `/photo`（cursor モード）。既定値では、波紋が消える時刻（833ms）と最後の大きさ（1000px）は前回と同じで、出だしが速く終わりが遅くなる。
+- 検証:
+  - `npm run check`: 2 errors / 23 warnings で変更前と同じ件数。`git diff --check` は問題なし。
+  - `rippleUniforms` の値（tsx）: 速度 1200・限界半径 1000 で、200ms の半径は linear 240px、easeOut 364px、easeOutExpo 813px。強さはどれも 0.76。833ms で半径 1000px・強さ 0、834ms で消える。速度か限界半径が 0 のときは描かない。
+  - Playwright Chromium（`page.clock` で時間を止めて撮影、ドットだけ表示）: 急発進から 150ms 後のリングが3枚の写真にまたがって1つの円として描かれた。console.error・pageerror はなし。
+- 未確認事項: 実機・実 GPU での見た目と、イージングの既定値の好み。Visual 比較は未実施（環境照合の既知の問題）。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 波紋にクールタイムを追加
+
+- 変更: `cursor.ts` に `CURSOR_RIPPLE_COOLDOWN_MS`（500ms）を追加した。`RippleDetector` は最後に波紋を出した時刻を持ち、そこから 500ms 経つまでは閾値を超えても次を出さない。従来の「加速度が閾値の半分を下回るまで出さない」条件もそのまま残している。経過時間は `performance.now()` で数えるので、静止して判定ループが止まっている間も進む。`update()` の引数に現在時刻 `now` を追加し、`/photo` から渡す。ポインターが外れたとき（`reset()`）はクールタイムも解除する。
+- 影響ページ: `/photo`（cursor モード）。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。tsx で、1500px/s のまま左右の反転を繰り返す入力を試した。反転周期 150ms で発生は 150・750・1350・1950ms（クールタイムなしでは 150・317・750ms…）、300ms で 300・900・1500ms、600ms で 600・1200・1800ms。発生から 400ms 後の急発進では出ず、600ms 後では出る。ブラウザでの確認は未実施。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 波紋と軌跡の調整値を別モジュールに分割
+
+- 状態: リファクタリング（型チェックのみ。挙動・値の変更なし）
+- 目的・受け入れ条件: カーソルモードの基本・波紋・軌跡の調整値を、別々のファイルで調整できるようにすること。
+- 変更内容・対象ファイル:
+  - `src/lib/halftone/ripple.ts`（新規）: 波紋の調整値（`CURSOR_RIPPLE_*`）、`CursorRipple`、`rippleProgress`・`rippleAlive`・`RippleDetector`・`rippleUniforms`。
+  - `src/lib/halftone/trail.ts`（新規）: 軌跡の調整値（`CURSOR_TRAIL_SPACING_PX`・`CURSOR_TRAIL_FADE_SPEED`）。軌跡の計算は `cursor.ts` の `CursorMotion` に残す（移動量 m と一緒に更新するため）。
+  - `src/lib/halftone/cursor.ts`: 上記を除いた残り。`Point` を export。
+  - import 先の変更: `src/lib/components/HalftonePhoto.svelte`、`src/routes/photo/+page.svelte`。
+- 影響するページ・表示バリエーション: なし（値と処理は移動しただけ）。
+- 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any）のみ。Visual は環境照合エラーで未実行。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソル本体・軌跡・波紋のドットの設定を分割
+
+- 状態: 実装（型チェックのみ。シェーダーのコンパイルと見た目は未確認）
+- 目的・受け入れ条件: ドットの格子・円の大きさを、カーソル本体・軌跡・波紋で別々に調整できること。既定値では今までと同じ見た目になること。
+- 変更内容・対象ファイル:
+  - 調整値: `cursor.ts` に `CURSOR_DOT_SCALE`、`trail.ts` に `CURSOR_TRAIL_MIN_CELL_PX`・`CURSOR_TRAIL_MAX_CELL_PX`・`CURSOR_TRAIL_DOT_SCALE`、`ripple.ts` に `CURSOR_RIPPLE_MIN_CELL_PX`・`CURSOR_RIPPLE_DOT_SCALE`（中心線の格子は既存の `CURSOR_RIPPLE_CELL_PX`）。既定値は本体と同じ（1 / 50 / 0.8、波紋の中心線は 48）。
+  - props: `cursorDotScale`、`cursorTrailMinCellPx`・`cursorTrailMaxCellPx`・`cursorTrailDotScale`、`cursorRippleMinCellPx`・`cursorRippleCellPx`・`cursorRippleDotScale`。
+  - シェーダー（`shader.ts`）: `u_cursorDots`・`u_trailDots`・`u_rippleDots`（縁の格子, 中心の格子, 円の大きさ）を追加し、`u_rippleCell` を廃止。本体・軌跡・波紋の e をそれぞれ求め、格子が最も大きくなるものを使う。`u_minCell`・`u_maxCell`・`u_dotScale` はスクロールモード専用になった。
+  - 挙動の差: これまでカーソルモードの円の大きさは `dotScale` を使っていたが、`cursorDotScale` などを使う。本体と軌跡は、同じ設定なら従来（x の最大を取る）と同じ結果。
+- 影響するページ・表示バリエーション: `/photo` 一覧のカーソルモード。
+- 検証: `npm run check` は既存の2エラーのみ。
+- 未確認事項: ブラウザでのシェーダーのコンパイルと見た目、Visual。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 シェーダーのコンパイルエラーと波紋が出ない問題の修正
+
+- 状態: 修正（開発サーバーの Chromium で確認）
+- 現象: カーソルモードで波紋が出ない（実際はエフェクト全体が無効）。コンソールに `HalftonePhoto: effect disabled Error: 'u_cursorCurve' : undeclared identifier`。
+- 原因:
+  1. 前回の分割で追加した `cursorEase` などの関数を、置換の誤りで頂点シェーダーに入れていた。コンパイルに失敗し、エフェクト全体が無効になっていた。
+  2. 本体・軌跡・波紋のうち「格子が最も大きいもの」を使う判定だったため、波紋の格子（`CURSOR_RIPPLE_CELL_PX` = 10）が本体（最大 50 × m）より小さいと、波紋が常に負けて見えなくなる。
+- 変更内容: 関数をフラグメントシェーダーへ移し、使っていない `cellAt` を削除。判定を「効果の強さ e が最も大きいもの」に変えた（`shader.ts`、`trail.ts` のコメント）。
+- 検証: `npm run check` は既存の2エラーのみ。開発サーバー（Chromium）で合成した `pointermove` を送り、コンパイルエラーが出ないこと、`drawArrays` の直後に読み取った画素で、ポインターから 220〜300px に塗りの割合の山（リング状）があることを確認した。Chrome 拡張のスクリーンショットには WebGL の描画が写らず、目視はしていない。
+- 未確認事項: 実際のマウス操作での見た目。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソル本体・軌跡・波紋に元画像のボケを追加
+
+- 状態: 実装（型チェック、開発サーバーの Chromium でシェーダーのコンパイルと描画を確認）
+- 目的・受け入れ条件: ドットの色を取る元画像のぼかし（ボケ）を、カーソル本体・軌跡・波紋で別々に調整できること。既定値では見た目を変えないこと。
+- 経緯: 先に効果ごとのフェード幅（原画 → ドットの切り替わり範囲）を追加したが、求められていたのは写真自体のボケだったため、置き換えた。フェード幅は全モード共通の `FADE` に戻した。
+- 変更内容・対象ファイル:
+  - 調整値: `cursor.ts` に `CURSOR_BLUR_PX`、`trail.ts` に `CURSOR_TRAIL_BLUR_PX`、`ripple.ts` に `CURSOR_RIPPLE_BLUR_PX`（CSS px、既定値 0）。props は `cursorBlurPx`・`cursorTrailBlurPx`・`cursorRippleBlurPx`。
+  - シェーダー: `u_cursorDots`・`u_trailDots`・`u_rippleDots` を vec4 にし、4番目をボケ（device px）にした。`halftone()` に `blur` 引数を追加し、ボケが格子の半分より大きいときは、ボケの半径に合う縮小段階（ミップマップ）から色を取る。段階の境目で色が飛ばないよう、隣り合う2段階を混ぜる。スクロールモードと入場演出はボケ 0。
+  - 縮小段階は箱型の縮小なので、ガウスぼかしのような滑らかなボケではない。
+- 影響するページ・表示バリエーション: `/photo` 一覧のカーソルモード（既定値 0 では変化なし）。
+- 検証: `npm run check` は既存の2エラーのみ。開発サーバーで合成した `pointermove` を送り、コンパイルエラーが出ないこと、canvas 9件で描画が続くことを確認した。
+- 未確認事項: ボケを 0 より大きくしたときの見た目。
+- 関連コミット・PR: 未コミット。

@@ -136,3 +136,88 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
   - 背面ギャラリーのぼかし（`.body` の `filter: blur(3px) saturate(10%)`、`transition: filter 0.3s`）は残っており、開閉とも約0.3秒かけて変化する。今回の依頼範囲外のため未変更。ぼかしも即時にする場合は別途判断が必要。
   - Desktopでは写真本体が表示されるのが開いた後約0.5秒。写真の読み込みに依存する既存の挙動で、今回は変更していない。
   - 物理端末・Safari・iPadでの表示は未確認。
+
+### 2026-10-14 — 一覧のマウス位置にだけカーソル用ドットエフェクトを重ねる
+
+- 状態: 実装（型チェックと開発サーバーでの Chromium 確認のみ。Visual は環境照合で未実行）
+- 目的・受け入れ条件: `/photo` 一覧で、マウスが乗っているタイルの写真にだけ、ポインター周りの円形の範囲でハーフトーンをかける。写真の表示領域の外には出さない。詳細モーダル表示中・動きを減らす設定・タッチ入力・読み込み失敗タイルでは出さない。タイルの見た目、クリックで詳細を開く挙動、スワイプ処理は変えない。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte`。
+  - 各タイルの `img` を `position: relative` の `.thumbnail` で包み、マウスが乗ったタイルだけ `HalftonePhoto`（`mode="cursor"`、`pointer` はタイル左上基準）をマウントする。同時にマウントするのは1タイルだけ。
+  - ポインターが離れると `pointer` を null にし、400ms のフェードアウト後にアンマウントする。アンマウント時は HalftonePhoto の onDestroy が mask を外す。
+  - 仮実装（`GalleryCursorDots` の import と使用、`svelte:window` の scroll、`.body` の pointer ハンドラー、hover 用の状態）を削除。
+  - `src/lib/components/GalleryCursorDots.svelte` を削除。このファイルは未追跡だったため、コミット履歴には影響しない。索引（README）への追加はしていない。
+- props・依存コンポーネントへの影響: `HalftonePhoto` を一覧でも使うようになった（既存の利用は詳細モーダルの2箇所）。`HalftonePhoto` の既存 props の挙動は変更なし。詳細モーダルとスワイプ処理は変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧（マウス操作時にホバーしているタイル）。静止時も、各タイルは `img` を `.thumbnail`（`display: block`）で包んだ構造になる。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js` の implicit any）、警告23件。件数は変更前と同じ。photo/+page の警告3件（modal の click 系、未使用セレクタ `n :global(body)`）は既存で、行番号のみ変わった。
+  - `npm run visual -- --grep 'page:photo(?: |-)'`: 実行前の環境照合で停止（`fontsSha256` 不一致）。テストは未実行。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（1440×900）:
+    - タイル1の中心にホバーで canvas が1つ。canvas の大きさはタイルと一致（256×384）。
+    - タイル2へ移動すると、タイル1の canvas は0、総数は1。
+    - ページ外へ出て 900ms 後、canvas は0で、タイルの mask も解除されている。
+    - reduced motion（`reducedMotion: 'reduce'`）とタッチ入力（CDP）では canvas は0。
+    - pageerror と console.error はなし。
+  - 写真詳細モーダルの表示中は、モーダルがタイルを覆うため操作できない。`$: if (detail_modal) releaseCursorTile()` で、モーダルを開いた時点で解除することをコードで確認したのみ（ブラウザでは未確認）。
+- Visual Diffの確認・baseline更新の有無: 未実施（環境照合で停止）。baseline 更新なし。
+- 未確認事項・残課題:
+  - 静止時の一覧の見た目が `.thumbnail` の追加で変わっていないことは未確認。環境照合の通る環境で `npm run visual -- --grep 'page:photo(?: |-)'` を実行して確認する必要がある。
+  - 実機（iOS Safari・Android Chrome）でのホバーとタッチの扱いは未確認。
+  - スクロール中に円の位置が更新されるかは未確認（ポインターを動かさない場合）。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-14 — カーソル円を隣の写真にもかからせる（ギャラリー全体でポインターを追跡）
+
+- 状態: 実装（型チェックと開発サーバーでの Chromium 確認。Visual は環境照合で未実行）
+- 目的・受け入れ条件: ポインター周りの円（半径 `CURSOR_RADIUS_PX`）が隣の写真の範囲にもかかること。円が複数の写真にまたがるとき、それぞれの写真の範囲内だけにドットが出て、写真の間の余白には出ないこと。ポインターがギャラリー外へ出たら消えること。ポインターを動かさずにスクロールしても、円がポインター位置に留まること。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte` のみ。
+  - `.body` で `pointermove` と `pointerleave` を追跡する（マウス以外の入力は外れ扱い）。`window` の scroll と resize でも再判定する。判定は `requestAnimationFrame` で1フレームに1回にまとめる。
+  - 判定: 読み込み済みの各写真の `img` の矩形と、ポインターとの最短距離が `CURSOR_RADIUS_PX` 未満なら、その写真に `HalftonePhoto`（`mode="cursor"`）をマウントする。`pointer` は写真の左上基準の値で、負の値や幅を超える値もそのまま渡す。範囲の外になった写真は `pointer` を null にして 400ms かけてフェードアウトし、その後アンマウントする。範囲に戻ったらタイマーを取り消す。
+  - 出さない条件: 詳細モーダル表示中、`prefers-reduced-motion`、マウス以外の入力、読み込みに失敗した写真。
+  - タイルごとの `pointerenter` / `pointermove` / `pointerleave` は削除し、`.body` 側の追跡に置き換えた。
+  - `.thumbnail` の中の `img` に `display: block` を付けた。静止時のレイアウトは、包む前（img が button 直下）と img・button の位置と大きさが一致することを計測して確認した。
+  - 契約外の追加: `resize` でも再判定する（ウィンドウの幅が変わると写真の矩形が動くため）。
+- props・依存コンポーネントへの影響: `HalftonePhoto` の props は変更なし（`pointer` は写真の左上基準で渡す）。詳細モーダル、スワイプ処理、クリックで詳細を開く挙動は変更なし。
+- 影響するページ・表示バリエーション: `/photo` 一覧（マウスが乗っている付近の写真）。静止時の見た目は、上記の計測で包む前と一致した。
+- 検証コマンド・結果:
+  - `npm run check`（Node v25.4.0）: エラー2件（既存の `clickToCopy.js`）、警告23件で、増加なし。
+  - `git diff --check`: 問題なし。
+  - 開発サーバー（vite dev、127.0.0.1:5199）と Playwright Chromium（headless、1440×900、DPR 1）で `/photo` を確認:
+    - 隣り合う2枚の間の余白（幅 40px）の中央にポインターを置くと、canvas は4枚で、期待集合（ポインターから半径内の写真を独立に計算したもの）と一致した。各 canvas は自分の写真の表示領域と同じ位置・大きさだった。
+    - 写真を `visibility: hidden` にして、ドットだけを撮った画像で確認した。余白の帯の非白画素は 0。左右の写真の内側には非白画素があった（44,862 px と 28,109 px）。
+    - ビューポート右下にポインターを置いた場合も、期待集合と一致した（4枚）。
+    - ギャラリー外へ出ると、400ms 後に canvas は 0 になり、写真の mask も解除されていた。
+    - ポインターを動かさずに window を 120px・300px 下へ、さらに 420px 上へスクロールした各時点で、canvas の集合は「ポインターから半径内の写真」と一致した（7・6・6 枚）。
+    - 動きを減らす設定、タッチ入力（CDP）、詳細モーダル表示中の canvas は 0 だった。
+    - pageerror と console.error はなし。console.warning は、SwiftShader への WebGL フォールバックの案内と ReadPixels の GPU 警告だけで、この環境によるものと判断した（アプリのコードは出していない）。
+  - スクリーンショット（scratchpad）: `cursor_gap_full.png`、`cursor_gap_clip.png`、`cursor_gap_dots_only.png`、`cursor_after_scroll.png`、`cursor_baseline.png`。
+- Visual Diffの確認・baseline更新の有無: 未実施（環境照合で停止）。baseline 更新なし。
+- 未確認事項・残課題:
+  - 静止時の Visual 比較（`.thumbnail` の追加と `img` の `display: block`）は、環境照合の通る環境で `npm run visual -- --grep 'page:photo(?: |-)'` を実行して確認する必要がある。
+  - 実機（iOS Safari・Android Chrome）のホバーとタッチ、実 GPU での描画は未確認。
+  - 同時にマウントされるのは、観測した範囲で最大7枚（9枚の一覧、半径 500）。実機での負荷は未確認。
+  - `resize` での再判定は契約外の追加（上記）。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-14 — カーソルの加速度で波紋を出す
+
+- 状態: 実装（型チェック、合成入力での判定、開発サーバーでの Chromium 確認。Visual は環境照合で未実行）
+- 目的・受け入れ条件: カーソルの加速度が閾値以上になったら、その位置から HalftonePhoto の波紋を出すこと。パラメーターは、半径が広がる速度・加速度の閾値・波紋の幅。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte`。描画は `HalftonePhoto.md` の同日の記録を参照。
+  - 判定はギャラリー全体で1回だけ行う（`RippleDetector`）。写真ごとに判定すると、閾値付近で出る写真と出ない写真に分かれ、リングが途切れるため。
+  - client 座標の移動だけで判定するので、スクロールでは出ない。波紋の位置はページ基準で持ち、写真ごとに左上基準へ直して `ripples` で渡す（スクロールしても写真に対して動かない）。写真の左上は `tileOrigins` に、カーソル判定と同じタイミングで記録する。
+  - 判定のループは `pointermove` で始まり、平滑化した速度が残っている間は続く（急停止の減速を拾うため）。止まっていたループを再開するときは、直前の移動を 1/60 秒の間の動きとみなす。古い時刻のままだと、静止からの急発進を小さく見積もるため。
+  - ギャラリーの外へ出たとき・詳細モーダル・動きを減らす設定では判定をリセットする。戻ってきたときの位置の飛びを急加速として数えないため。
+- 影響するページ・表示バリエーション: `/photo` 一覧（マウス操作時）。静止時の表示・詳細モーダル・タッチ操作は変更なし。
+- 検証: `HalftonePhoto.md` の同日の記録を参照。
+- 未確認事項: 実機・実 GPU での見た目と既定値の調整。HalftonePhoto の `cursorRippleSpeedPx` を既定値から変えた場合、一覧側で古い波紋を捨てる判定（`CURSOR_RIPPLE_SPEED_PX` を使う）とずれる。現在は既定値のみ使っている。
+- 関連コミット・PR: 未コミット。
+
+## 2026-10-14 Pinterest 風の石積み配置
+
+- 状態: 実装（型チェックのみ。Visual は環境照合で未実行）
+- 目的・受け入れ条件: 写真一覧を Pinterest のように隙間なく詰めて並べること。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte`。`.body` を flex の折り返しから CSS `columns`（列幅 236px、間隔 16px、幅は従来の 60vw のまま）に変更。`.photoPost` は `break-inside: avoid` で列をまたがせず、ボタンを全幅にした。600px 以下は全幅・列幅 160px・間隔 8px。
+- 影響するページ・表示バリエーション: `/photo` 一覧のレイアウト（列数・写真サイズ・並び順）。並び順は左→右から上→下（列ごと）に変わる。詳細モーダルは変更なし。
+- 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any、変更前から発生）のみ。Visual は環境を再採取して全 baseline を再生成し、通常比較 93/93 成功（`.visual/README.md` 参照）。
+- 未確認事項: カーソルエフェクトとの重なり（マウス操作時）。
+- 関連コミット・PR: 未コミット。

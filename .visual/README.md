@@ -22,7 +22,7 @@ npm run visual:update -- --grep 'page:home '
 npm run visual:update
 ```
 
-更新後は画像diffをレビューし、baseline・manifest・fixtureをソースと一緒に管理する。
+更新後は画像diffをレビューする。baseline画像（`.visual/baselines/`）はGit管理せず各環境で `npm run visual:update` により生成する。manifest・fixtureはソースと一緒に管理する。
 
 ## 構造
 
@@ -47,3 +47,4 @@ npm run visual:update
 ## 写真のタッチ操作回帰テスト
 
 `npm run visual -- --grep 'swipe'` で `tests/visual/photo-swipe.spec.ts` の5件を実行する。Desktopの画像比較とは別に、390×844・Android UA・ChromiumのCDPタッチ入力で、左右切り替え、縦スクロール、短い移動、キャンセル、複数指、一覧の両端、URL同期、切り替え後のタップ閉鎖を確認する。通常のアニメーションでは指追従、左右のスライド、端での戻り、切り替え中の追加入力の抑制を検証し、動きを減らす設定ではスライドが生成されないことも確認する。次の通常操作はスライドと戻りが終わった後に送る。モバイルのスクリーンショットは `.visual/results/photo-swipe-mobile.png` と `.visual/results/photo-swipe-drag.png` に保存するが、baseline比較には含めない。物理端末・Safariの検証結果とは区別する。
+環境再採取（2026-10-14）: Windowsフォントのハッシュが変わったため `environment.json` の `fontsSha256` を再採取し、全baselineを `npm run visual:update` で再生成（93/93）。直後の通常比較93/93成功。同時にbaseline画像をGit管理から外した（以後はローカル生成）。
