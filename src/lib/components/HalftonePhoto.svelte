@@ -25,13 +25,19 @@
 	// カーソルモード（mode="cursor"）: ポインター周囲の円形の範囲だけにエフェクトをかける。
 	// 効果の強さ e = clamp(ease(x), 0, 1)、x = clamp(1 − 距離 / 半径, 0, 1)（縁 0、中心 1）。ease は CURSOR_EASING の cubic-bezier。
 	/** カーソルモードの効果範囲の半径（CSS px）。ポインターからこの距離で効果が 0 になる */
-	export const CURSOR_RADIUS_PX = 1000;
+	export const CURSOR_RADIUS_PX = 2000;
 	/** カーソルモードの縁（効果が弱い所）の格子の大きさ（CSS px） */
 	export const CURSOR_MIN_CELL_PX = 1;
 	/** カーソルモードの中心（ポインター直下）の格子の大きさ（CSS px） */
-	export const CURSOR_MAX_CELL_PX = 50;
+	export const CURSOR_MAX_CELL_PX = 500;
 	/** カーソルモードのイージング曲線（CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
 	export const CURSOR_EASING: CubicBezier = EASING_PRESETS.easeInExpo;
+	// 移動量 m（0〜1）: カーソルの速さ / CURSOR_FULL_SPEED_PX に追従する値。半径と中心の格子に掛ける。
+	// 静止すると速さが 0 になり、m は追従速度に従ってゆっくり 0 へ戻る（指数的に近づく）。
+	/** 移動量 m が 1 になるカーソルの速さ（CSS px / 秒） */
+	export const CURSOR_FULL_SPEED_PX = 1500;
+	/** 移動量 m の追従速度（1 / 秒）。大きいほど速く追従し、静止後も速く縮む。1 秒で差が e^(−値) 倍になる */
+	export const CURSOR_FOLLOW_SPEED = 2;
 
 	// 入場演出（entrance を true にしたとき、画像の読み込み直後に一度だけ再生する）。
 	// 写真の上端から下端へ前線が進み、各行の局所進行度 L（0〜1）で格子・円・原画への切り替えを決める。
@@ -102,6 +108,8 @@
 	export let cursorMaxCellPx = CURSOR_MAX_CELL_PX;
 	/** カーソルモードの効果の強さのイージング（cubic-bezier）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
 	export let cursorEasing: CubicBezier = CURSOR_EASING;
+	/** カーソルモードの移動量の追従速度（1 / 秒）。静止したときに半径と格子が 0 へ戻る速さも決める */
+	export let cursorFollowSpeed = CURSOR_FOLLOW_SPEED;
 
 	const LEVELS = 5; // セルサイズの段階数。隣接段階を混ぜて連続的に育てる
 	const MAX_TEXTURE_PX = 2048;
@@ -252,6 +260,10 @@ void main() {
 	let entranceStart = 0;
 	let entranceT = 0; // 入場演出の進み具合（0〜1）
 	let lastPointer = { x: 0, y: 0 }; // カーソルモードで最後にあったポインターの位置（フェードアウト中に使う）
+	let hasPointer = false; // lastPointer が実際の位置か（最初の1回は移動量に数えない）
+	let movedPx = 0; // 前のフレームからポインターが動いた距離（CSS px）
+	let motion = 0; // 移動量 m（0〜1）。半径と中心の格子に掛ける
+	let lastStepTime = 0;
 	let cursorCurve = new Float32Array(CURSOR_CURVE_STEPS + 1); // cursorEasing を標本化した表（u_cursorCurve）
 
 	$: ease = cubicBezier(easing);
@@ -265,7 +277,7 @@ void main() {
 				: 0
 			: ease(Math.min(Math.max(progress / Math.max(end, 0.001), 0), 1));
 	// フェードアウト中も最後の位置を使うため、ポインターが来たときだけ覚えておく
-	$: if (pointer) lastPointer = pointer;
+	$: trackPointer(pointer);
 
 	// エフェクトを使うまでは追加の画像取得もWebGL初期化もしない
 	$: if (target > 0 && !failed) activated = true;
@@ -525,8 +537,26 @@ void main() {
 		frame = requestAnimationFrame(step);
 	}
 
+	function trackPointer(next: { x: number; y: number } | null) {
+		if (!next) return;
+		if (hasPointer) movedPx += Math.hypot(next.x - lastPointer.x, next.y - lastPointer.y);
+		lastPointer = next;
+		hasPointer = true;
+	}
+
 	function step() {
 		frame = 0;
+		const now = performance.now();
+		const dt = Math.min((now - lastStepTime) / 1000, 0.1);
+		lastStepTime = now;
+		if (mode === 'cursor') {
+			// 速さ（移動量 / 経過時間）に m を追従させる。静止中は速さ 0 なので m はゆっくり 0 へ戻る
+			const speed = dt > 0 ? movedPx / dt : 0;
+			movedPx = 0;
+			const goal = Math.min(speed / Math.max(CURSOR_FULL_SPEED_PX, 1), 1);
+			motion += (goal - motion) * (1 - Math.exp(-Math.max(cursorFollowSpeed, 0) * dt));
+			if (goal === 0 && motion < 0.001) motion = 0;
+		}
 		if (entranceStatus === 'running') {
 			entranceT = Math.min((performance.now() - entranceStart) / ENTRANCE_DURATION_MS, 1);
 			if (entranceT >= 1) entranceStatus = 'done';
@@ -540,7 +570,7 @@ void main() {
 		if (Math.abs(target - shown) < 0.001) shown = target;
 		strength = shown;
 		draw();
-		if (shown !== target) schedule();
+		if (shown !== target || (mode === 'cursor' && motion > 0)) schedule();
 	}
 
 	function smoothstep(x: number) {
@@ -663,11 +693,14 @@ void main() {
 		gl.uniform1f(uniform('u_entranceDot'), ENTRANCE_DOT_PX * dpr);
 		gl.uniform1f(uniform('u_entranceWidth'), ENTRANCE_GRADIENT_WIDTH);
 		gl.uniform1f(uniform('u_minCell'), (cursor ? cursorMinCellPx : minCellPx) * dpr);
-		gl.uniform1f(uniform('u_maxCell'), (cursor ? cursorMaxCellPx : maxCellPx) * dpr);
+		gl.uniform1f(
+			uniform('u_maxCell'),
+			(cursor ? Math.max(cursorMaxCellPx * motion, cursorMinCellPx) : maxCellPx) * dpr
+		);
 		gl.uniform1f(uniform('u_mode'), cursor ? 1 : 0);
 		// 座標は gl_FragCoord と同じく左下原点の device px に直す
 		gl.uniform2f(uniform('u_pointer'), lastPointer.x * dpr, height - lastPointer.y * dpr);
-		gl.uniform1f(uniform('u_cursorRadius'), cursorRadiusPx * dpr);
+		gl.uniform1f(uniform('u_cursorRadius'), Math.max(cursorRadiusPx * motion * dpr, 0.001));
 		gl.uniform1fv(uniform('u_cursorCurve'), cursorCurve);
 		gl.uniform1f(uniform('u_width'), Math.max(gradientWidth, 0.001));
 		gl.uniform1f(uniform('u_levels'), LEVELS);

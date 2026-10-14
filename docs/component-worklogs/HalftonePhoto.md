@@ -281,3 +281,10 @@ npx playwright test tests/visual/photo-images.spec.ts
   - 縮小結果のキャッシュはページの生存中保持し、上限を設けていない。件数が多い場合のメモリは未評価。
   - 既定の easeInOut での見た目（効果の強さの形）は目視していない。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-14 カーソルモードの半径と格子をカーソルの移動量に追従させる
+
+- 変更: カーソルの速さ / `CURSOR_FULL_SPEED_PX`（1500 px/秒）を目標値とする移動量 m（0〜1）を追加し、`cursorRadiusPx` と `cursorMaxCellPx` に掛ける（格子は `cursorMinCellPx` を下限にする）。m は追従速度 `cursorFollowSpeed`（既定 `CURSOR_FOLLOW_SPEED` = 2 / 秒）で指数的に近づき、静止すると 0 へゆっくり戻る。m が 0 になるまで描画を続ける。
+- 影響ページ: `/photo`（cursor モードの使用箇所）。scroll モードと入場演出は変更なし。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
+- 関連コミット・PR: 未コミット。
