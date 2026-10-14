@@ -295,3 +295,16 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出は変更なし。
 - 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。目視・Visual比較は未実施。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-14 モードごとにモジュールを分割
+
+- 変更: 777行あった `HalftonePhoto.svelte` から、調整値と計算を `src/lib/halftone/` へ移した。コンポーネントは props・状態・描画の組み立てだけを持つ（約290行）。props と表示は変更なし。
+  - `scroll.ts`: スクロールモードの調整値（`EFFECT_*`、`MAX/MIN_CELL_PX`、`GRADIENT_WIDTH`、`TRANSPARENT_BACKGROUND`、`DOT_SCALE`）と元写真のマスク。
+  - `cursor.ts`: カーソルモードの調整値（`CURSOR_*`）、効果の強さの表、移動量と軌跡を更新する `CursorMotion`。
+  - `entrance.ts`: 入場演出の調整値（`ENTRANCE_*`）と原画のマスク。
+  - `image.ts`: 画像の取得、キーカラーを保持する縮小段階、キャッシュ、テクスチャ転送。
+  - `shader.ts`: WebGL2 のシェーダーとプログラムの作成。`common.ts`: 共有する値と smoothstep。
+- 調整値の import 元が変わった。`/photo` の `CURSOR_RADIUS_PX` は `$lib/halftone/cursor` から読む。
+- 影響ページ: `/photo`（cursor）、写真詳細のPC・モバイル（entrance / scroll）。
+- 検証: `npm run check` は 2 errors / 23 warnings で変更前と同じ件数。`npm run build` 成功。ブラウザでの目視・Visual比較は未実施（`.visual/environment.json` のフォント照合で停止する既知の問題）。
+- 関連コミット・PR: 未コミット。

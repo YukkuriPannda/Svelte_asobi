@@ -3,7 +3,8 @@
 	import Header from '$lib/components/Header.svelte';
 	import PhotoDetailModal from '$lib/components/PhotoDetailModal.svelte';
 	import PhotoDetailModalMobile from '$lib/components/PhotoDetailModal-mobile.svelte';
-	import HalftonePhoto, { CURSOR_RADIUS_PX } from '$lib/components/HalftonePhoto.svelte';
+	import HalftonePhoto from '$lib/components/HalftonePhoto.svelte';
+	import { CURSOR_RADIUS_PX } from '$lib/halftone/cursor';
 	import { photoPost } from '$lib/PostData';
 	import { photoThumbnailUrl } from '$lib/photo-thumbnails';
 	import { onMount, onDestroy, tick } from 'svelte';
