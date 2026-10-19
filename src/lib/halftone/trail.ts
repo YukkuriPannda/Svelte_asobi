@@ -3,11 +3,11 @@
 /** 軌跡の点を置く間隔（CSS px）。カーソルがこの距離だけ進むたびに、進行方向を向けて点を置く */
 export const CURSOR_TRAIL_SPACING_PX = 20;
 /** 軌跡が消える速さ（1 / 秒）。各点の強さは 1 秒で e^(−値) 倍になる。0 で軌跡なし */
-export const CURSOR_TRAIL_FADE_SPEED = 3;
+export const CURSOR_TRAIL_FADE_SPEED = 0.1;
 /** 波面が横へ広がる速さ（CSS px / 秒）。点から波面までの距離は経過時間にこの値を掛けたもの */
-export const CURSOR_TRAIL_SPREAD_PX = 150;
+export const CURSOR_TRAIL_SPREAD_PX = 300;
 /** 波の幅（CSS px）。波面を中心に、この幅の帯として描く */
-export const CURSOR_TRAIL_WIDTH_PX = 24;
+export const CURSOR_TRAIL_WIDTH_PX = 50;
 // 軌跡のドット。効果の強さ e は本体と同じ式（CURSOR_EASING）で求め、格子は縁 → 中心へ MIN → MAX に育てる。
 // MAX には本体と同じく現在の移動量 m を掛ける。本体と重なる所は効果の強さ e が大きい方を使う
 /** 軌跡の縁の格子の大きさ（CSS px） */
