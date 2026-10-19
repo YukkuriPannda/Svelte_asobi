@@ -41,7 +41,7 @@
 	// 写真の id → 写真の左上基準のポインター位置。null はフェードアウト中（まだアンマウントしていない）。キーが無ければマウントしない
 	let cursorTiles: Record<string, { x: number; y: number } | null> = {};
 	const cursorTimers: Record<string, ReturnType<typeof setTimeout>> = {};
-	let cursorClient: { x: number; y: number } | null = null; // ギャラリー内の最後のポインター位置（client 座標）。外へ出たら null
+	let cursorClient: { x: number; y: number } | null = null; // 最後のポインター位置（client 座標）。ウィンドウの外へ出たら null
 	let cursorFrame = 0;
 	let thumbnailImages: Record<string, HTMLImageElement | null> = {};
 	// 波紋: カーソルの加速度が閾値を超えたら、その位置から波紋を出す。判定はギャラリー全体で1回だけ行い、
@@ -150,13 +150,15 @@
 		}, CURSOR_FADE_OUT_MS);
 	}
 
-	function handleGalleryPointer(event: PointerEvent) {
+	// ギャラリーの外（余白・ヘッダー）でも写真の近くなら円を出すため、ウィンドウ全体で追う
+	function handlePointer(event: PointerEvent) {
 		cursorClient = event.pointerType === 'mouse' ? { x: event.clientX, y: event.clientY } : null;
 		scheduleCursorUpdate();
 		scheduleRippleUpdate();
 	}
 
-	function handleGalleryLeave() {
+	function handlePointerOut(event: PointerEvent) {
+		if (event.relatedTarget) return; // ページ内の要素間の移動。null ならウィンドウの外へ出た
 		cursorClient = null;
 		scheduleCursorUpdate();
 		// 外へ出た位置を残すと、戻ってきたときの位置の飛びを急加速として数えるので、判定を1回流してリセットする
@@ -321,15 +323,18 @@
 	});
 </script>
 
-<svelte:window on:scroll={scheduleCursorUpdate} on:resize={scheduleCursorUpdate} />
+<svelte:window
+	on:scroll={scheduleCursorUpdate}
+	on:resize={scheduleCursorUpdate}
+	on:pointermove={handlePointer}
+	on:pointerout={handlePointerOut}
+/>
 <div class={detail_modal ? 'scrolllock' : ''}>
 	<div style={detail_modal ? 'filter: blur(3px)' : ''}><Header /></div>
 	<div
 		class="body"
 		data-visual-id="photo-gallery"
 		style={detail_modal ? 'filter: blur(3px) saturate(10%)' : ''}
-		on:pointermove={handleGalleryPointer}
-		on:pointerleave={handleGalleryLeave}
 	>
 		{#each photoPost as _, i}
 			<div class="photoPost" data-visual-id={`photo-${photoPost[i].id}`}>
