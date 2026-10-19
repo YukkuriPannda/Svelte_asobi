@@ -221,3 +221,13 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any、変更前から発生）のみ。Visual は環境を再採取して全 baseline を再生成し、通常比較 93/93 成功（`.visual/README.md` 参照）。
 - 未確認事項: カーソルエフェクトとの重なり（マウス操作時）。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-19 — ギャラリーの外でもドットエフェクトを消さない
+
+- 状態: 実装（型チェックのみ。ブラウザー・Visual は未確認）
+- 目的・受け入れ条件: `/photo` で、ポインターがギャラリー要素（`.body`）の外へ出ても、写真の近くにいる間はドットエフェクトを消さないこと。
+- 変更内容・対象ファイル: `src/routes/photo/+page.svelte`。`pointermove` / `pointerleave` を `.body` から `svelte:window` の `pointermove` / `pointerout`（`relatedTarget` が null のとき＝ウィンドウの外へ出たとき）へ移した。円を出すかの判定（写真からの距離 `CURSOR_RADIUS_PX`）は従来どおり。波紋のリセットはウィンドウの外へ出たときに行う。
+- 影響するページ・表示バリエーション: `/photo` 一覧（マウス操作時）。ヘッダーや左右の余白にポインターがあっても、近くの写真に円・軌跡・波紋が出る。詳細モーダル・動きを減らす設定・タッチ操作は変更なし。
+- 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any）のみ。
+- 未確認事項: 実ブラウザーでの見た目。
+- 関連コミット・PR: 未コミット。
