@@ -231,3 +231,69 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - 検証: `npm run check` は既存の2エラー（`clickToCopy` の暗黙 any）のみ。
 - 未確認事項: 実ブラウザーでの見た目。
 - 関連コミット・PR: 未コミット。
+
+### 2026-10-19 — 写真詳細ページのOGP画像とメタタグ
+
+- 状態: 検証済み（生成・check・build。実際のSNSでのプレビューは未確認）
+- 目的・受け入れ条件: 各 `/photo/<id>` の prerender HTML に、1200×630 の JPEG（左に写真、右にタイトル、黒背景、Hina Mincho）を指す OGP / Twitter のメタタグを出すこと。
+- 変更内容・対象ファイル:
+  - `scripts/photo-og.html`（新規）: カードのテンプレート。デザインの値（余白・文字サイズ・色など）は先頭の CSS カスタムプロパティ。
+  - `scripts/photo-og.mjs`（新規）: `src/lib/generated/photo_output.json` の各写真を Playwright の Chromium で描画し、`static/photo-og/<encodeURIComponent(id)>.jpg` に保存する。既存の `static/photo-og/*.jpg` のうち対象外のファイルは削除する。
+  - `package.json`: `photos:og` を追加。
+  - `src/lib/photo-thumbnails.ts`: `photoOgImageUrl(id)` を追加。
+  - `src/routes/photo/[photo_id]/+page.svelte`: `<svelte:head>` に title・og・twitter のメタを追加。ページ本体（`/photo/?photo_id=` への移動）は変更なし。
+  - `static/photo-og/*.jpg`（9件、生成物）。
+- 再生成: `scripts/photo-og.html` を編集したとき、または写真を追加・変更したときは `npm run photos:og` を実行し、生成された JPEG を確認する。
+- props・依存コンポーネントへの影響: なし。`/photo` 一覧と詳細モーダルは変更なし。
+- 影響するページ・表示バリエーション: `/photo/[photo_id]`（9件）。画面の表示は変更なし（メタタグのみ）。
+- 検証コマンド・結果:
+  - `npm run photos:og`: 本環境では Playwright 同梱の Chromium が未インストールのため失敗（`npx playwright install chromium` が必要）。同じ処理を、`scripts/photo-og.mjs` を scratchpad に複製して起動先だけシステムの Google Chrome に変えて実行し、9件を生成した。全件 1200×630 の JPEG。
+  - `npm run check`: エラー2件・警告23件。いずれも既存（エラーは `clickToCopy.js` の implicit any）。今回の変更ファイルからの指摘はなし。
+  - `npm run build`: 成功。`photo/gakusou.html` の `og:image` は `https://rhoknov.net/photo-og/gakusou.jpg`、`photo/ugoki_houkou01 copy.html` は `https://rhoknov.net/photo-og/ugoki_houkou01%2520copy.jpg`（既存サムネイルと同じ二重エンコード）。
+  - Visual: 未実施（表示 UI に変更なし）。
+- 未確認事項・残課題:
+  - X・Discord などでの実際のリンクプレビュー未確認。
+  - `ugoki_houkou01%2520copy.jpg` が、デプロイ後も `ugoki_houkou01%20copy.jpg` として配信されるかは未確認（サムネイルと同じ仕組み）。
+  - `twitter:image` は未設定（`og:image` の利用に任せている）。
+  - 非常に長いタイトルはテンプレートの高さを超えると切れる。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-19 — OGP画像を正方形トリミングの中央揃えに変更
+
+- 状態: 実装・再生成・画像確認済み（既定の `npm run photos:og` での実行は未確認）
+- 目的・受け入れ条件: OGP カード（1200×630）で、写真を正方形に切り抜いて高さをカードの 90%（567px）にし、写真とタイトルの組をカードの中央に置くこと。
+- 変更内容・対象ファイル:
+  - `scripts/photo-og.html`: `--photo-max-width`（60%）を `--photo-size: 90%` に置き換えた。写真は `height: var(--photo-size); aspect-ratio: 1 / 1; object-fit: cover;`。`.card` は上下の余白をなくし（`padding: 0 var(--card-padding)`）、`justify-content: center; align-items: center;` で中央に置く。タイトルは `flex: 0 1 auto; min-width: 0;`（`flex: 1` をやめ、組を中央に置けるようにした）。
+  - `static/photo-og/*.jpg`（9件、生成物）を再生成した。
+- 再生成: `scripts/photo-og.mjs` は変更していない。scratchpad に複製し、読み込み元をリポジトリの絶対パスに、起動先を Google Chrome（`C:/Program Files/Google/Chrome/Application/chrome.exe`）に変えて実行した。Playwright 同梱の Chromium は使っていない。
+- 影響するページ・表示バリエーション: OGP 画像のみ（`/photo/[photo_id]` の `og:image`）。ページ表示・`/photo` 一覧・詳細モーダルは変更なし。
+- 検証コマンド・結果:
+  - sharp で 9 件すべて 1200×630 の JPEG であることを確認した。
+  - `gakusou.jpg`・`rot.jpg`・`minimal_and_accent.jpg` を目視と画素の計測で確認した。写真は 567×567 で、上下とも約 32px の余白があり縦中央。写真とタイトルの組は、`gakusou` で x 229〜968、`rot` で x 260〜約940、`minimal_and_accent` でボックス x 48〜1152（テキストは 48〜1105）。単一行のタイトルは組の中心がカード中心（600px）と一致した。タイトルは Hina Mincho で描画された（生成スクリプトがフォントの読み込み完了を確認）。
+  - `minimal_and_accent` はタイトルが2行に折り返すため、タイトルのボックス幅が最大（489px）まで伸び、テキストの右端が空く。テキスト基準の中心は約576px で、カード中心より左にずれて見える。仕様どおりのため変更していない。
+  - `npm run check` / `npm run build` は実行していない（Svelte・ビルドの変更はなし）。
+- 未確認事項・残課題:
+  - 既定の `npm run photos:og`（Playwright 同梱 Chromium）での実行は未確認（ブラウザーの導入はしていない）。
+  - 2行以上に折り返すタイトルの中央揃えは、右端の余白の分だけ見た目が左へずれる。直すなら別途、表示幅の扱いを検討する。
+  - SNS での実際のプレビューは未確認。
+- 関連コミット・PR: 未コミット。
+
+### 2026-10-19 — OGP画像を左右2分割に変更
+
+- 状態: 実装・再生成・画素確認済み（既定の `npm run photos:og` での実行は未確認）
+- 目的・受け入れ条件: OGP カード（1200×630）を左右2分割にし、写真を左半分（0〜600px）の中央、タイトルを右半分（600〜1200px）の中央に置くこと。
+- 変更内容・対象ファイル:
+  - `scripts/photo-og.html`: `.card` を `padding: 0; gap: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 100%; align-items: center; justify-items: center;` にした。`#photo` は `height: var(--photo-size); aspect-ratio: 1 / 1; object-fit: cover;`。`#title` に `padding: 0 var(--card-padding);` と `text-align: center;` を追加。`:root` の `--card-gap` は削除した。
+  - `static/photo-og/*.jpg`（9件、生成物）を再生成した。`scripts/photo-og.mjs` は変更していない。
+- 再生成: scratchpad の `photo-og-run.mjs` を使い、システムの Google Chrome で `node photo-og-run.mjs` を実行した。9件すべて 1200×630 の JPEG。
+- 検証結果（非黒画素、輝度合計 > 60 の範囲）:
+  - 写真: `gakusou`、`rot`、`minimal_and_accent` のいずれも x 17〜583、y 32〜598。567×567 で、左半分の中央（x≈300）に収まっている。
+  - タイトル: `gakusou` x 835〜961（中心 ≈898）、`rot` x 867〜932（中心 ≈900）、`minimal_and_accent` x 679〜1117（中心 ≈898、2行折り返し）。いずれも右半分に表示される。
+- 未確認事項・残課題:
+  - 輝度しきい値で測っているため、写真の暗部の端は数pxずれる可能性がある。
+  - `npm run photos:og`（Playwright 同梱 Chromium）での実行は未確認。
+  - SNS での実際のプレビューは未確認。
+- 関連コミット・PR: 未コミット。
+- タイトル文字サイズを64px→32pxに変更し再生成（`scripts/photo-og.html` の `--title-font-size` のみ変更。9件とも1200×630を確認）。
+- 背景に同じ写真をblur 40px・brightness 0.1で敷いた（`scripts/photo-og.html` の `#background`、`scripts/photo-og.mjs` で `#background` にもsrcを設定）。
+- `check:photo-og` を追加し `build` / `build:svelte` に組み込んだ。`scripts/photo-og.mjs` に `check` モードを追加（ブラウザを起動せず、`static/photo-og/` の欠落を検出）し、未使用の `writeFile` importを削除した。`scripts/photo-og.html` の `.card` から `padding: 0;` `gap: 0;` を削除し、コメントを `.card` の直上へ移した。

@@ -1,0 +1,89 @@
+<!doctype html>
+<!--
+  OGP card template (1200x630). Rendered by `npm run photos:og` (scripts/photo-og.mjs).
+  After editing this file, or after adding a photo, re-run `npm run photos:og`
+  to regenerate static/photo-og/*.jpg.
+-->
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Hina+Mincho&display=block"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				/* Design knobs. Change these values to adjust the card. */
+				--card-width: 1200px;
+				--card-height: 630px;
+				--card-padding: 48px;
+				--photo-size: 90%;
+				--card-background: #000;
+				--title-color: #f2f2f2;
+				--title-font-family: 'Hina Mincho', serif;
+				--title-font-size: 32px;
+				--title-line-height: 1.3;
+				--background-blur: 40px;
+				--background-brightness: 0.1;
+			}
+
+			body {
+				margin: 0;
+				width: var(--card-width);
+				height: var(--card-height);
+				overflow: hidden;
+				background: var(--card-background);
+			}
+
+			#background {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				filter: blur(var(--background-blur)) brightness(var(--background-brightness));
+				transform: scale(1.15);
+			}
+
+			/* Two equal columns: the photo is centered in the left half, the title in the right half. */
+			.card {
+				position: relative;
+				box-sizing: border-box;
+				width: 100%;
+				height: 100%;
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				grid-template-rows: 100%;
+				align-items: center;
+				justify-items: center;
+			}
+
+			/* The photo is a square crop (object-fit: cover) whose side is --photo-size of the card height. */
+			#photo {
+				height: var(--photo-size);
+				aspect-ratio: 1 / 1;
+				object-fit: cover;
+			}
+
+			#title {
+				min-width: 0;
+				margin: 0;
+				color: var(--title-color);
+				font-family: var(--title-font-family);
+				font-size: var(--title-font-size);
+				font-weight: 400;
+				line-height: var(--title-line-height);
+				padding: 0 var(--card-padding);
+				text-align: center;
+				overflow-wrap: anywhere;
+			}
+		</style>
+	</head>
+	<body>
+		<img id="background" alt="" />
+		<main class="card">
+			<img id="photo" alt="" />
+			<h1 id="title"></h1>
+		</main>
+	</body>
+</html>
