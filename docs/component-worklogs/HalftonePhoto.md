@@ -401,3 +401,22 @@ npx playwright test tests/visual/photo-images.spec.ts
 - 検証: `npm run check` は既存の2エラーのみ。開発サーバーで合成した `pointermove` を送り、コンパイルエラーが出ないこと、canvas 9件で描画が続くことを確認した。
 - 未確認事項: ボケを 0 より大きくしたときの見た目。
 - 関連コミット・PR: 未コミット。
+
+## 2026-10-19 カーソルモードの軌跡を進行方向の左右へ広がる波に変更
+
+- 状態: 実装（型チェックと開発サーバーでの描画を確認。Visual 比較は未実施）
+- 目的・受け入れ条件: カーソルが通った点から、進行方向に対して左右 ±90° へ波面が広がり、薄れて消えること（船が水をかき分ける波。速いほど V 字が開く）。scroll モード・入場演出・写真詳細は変更しない。
+- 変更内容・対象ファイル:
+  - `trail.ts`: `CURSOR_TRAIL_SPREAD_PX`（波面が横へ広がる速さ、150 CSS px / 秒）と `CURSOR_TRAIL_WIDTH_PX`（波の幅、24 CSS px）を追加した。`CURSOR_TRAIL_FADE_SPEED` は半径ではなく波の強さを薄らせる値になった（既定値 3 は変更なし）。`CURSOR_TRAIL_SPACING_PX`（20 CSS px）は、点を置く間隔と波の沿った長さの基準になった。
+  - `cursor.ts`: 軌跡の点に進行方向 `dir`・経過時間 `age`・強さ `fade` を持たせた。点は直前の点（なければ1回前のポインター）から現在位置までを間隔ごとに区切って置くので、速く動いたフレームでも点が開かない。強さ e^(−fadeSpeed × age) が 0.01 を下回った点は捨てる。`trailUniforms()` は `points`（x, y, 進行方向 x, y）と `waves`（波面までの距離、強さ）を返す。
+  - `shader.ts`: `u_trail` を vec4 にし、`u_trailWave`・`u_trailWidth`・`u_trailSpacing` を追加した。各点で、進行方向に直角な距離 side が波面（経過時間 × 速さ）に一致する帯と、進行方向の距離 along を間隔程度に限った範囲の積を求め、最も強い点を使う。波の強さには `cursorEase` を通さない（カーソル本体の指数的なイージングを通すと、数フレームで見えなくなるため。波紋と同じ扱い）。
+  - `HalftonePhoto.svelte`: 新しい uniform を渡す。props は追加していない。
+- 影響ページ: `/photo`（cursor モード）。scroll モード・入場演出・写真詳細は変更なし（`u_trailCount` は cursor モードのときだけ点数を渡す）。
+- 検証:
+  - `npm run check`: 2 errors / 23 warnings。既存の `clickToCopy.js` の暗黙 any のみで、件数は変更前と同じ。
+  - `npm run visual -- --grep 'component:HalftonePhoto$'`: `No tests found`（manifest に HalftonePhoto の component id がない）。
+  - `npm run visual -- --grep 'page:photo '`: 12件すべて失敗。Playwright の Chromium（`chromium_headless_shell-1194`）が未インストールで起動できず、比較に至らなかった。`.visual/baselines` の PNG は 0 件のため、baseline は更新していない。
+  - 開発サーバー（`npx vite dev --port 5174 --strictPort --host 127.0.0.1`。5173 は Docker / WSL が使用中）と、システムの Chrome 155 で `/photo`（1440×900）を確認。写真を隠してドットだけを撮ると、水平・斜めの線の両側に、線と平行な波面が現れることを確認した（`scratchpad/wake-*-dots.png`）。写真を表示したままでは効果が淡い（既存の仕様どおり）。
+  - 確認中に見つけて直した点: (1) 1 フレームに 1 点しか置かず、速い移動で点が途切れた。(2) 波の強さに `cursorEase` を通していたため、波がすぐ消えた。
+- 未確認事項: 実際のマウス速度での見た目（Playwright の移動は一瞬で届くため、速さの調整は目視のみ）、タッチ操作、実機・実 GPU。ポインターが外へ出てから戻ると、戻った位置まで点が直線状に並んで波が出る（pointerout 時の処理は変更していない）。Visual 比較は未実施。
+- 関連コミット・PR: 未コミット。

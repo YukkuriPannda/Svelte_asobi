@@ -46,7 +46,9 @@
 		CURSOR_TRAIL_BLUR_PX,
 		CURSOR_TRAIL_FADE_SPEED,
 		CURSOR_TRAIL_MAX_CELL_PX,
-		CURSOR_TRAIL_MIN_CELL_PX
+		CURSOR_TRAIL_MIN_CELL_PX,
+		CURSOR_TRAIL_SPACING_PX,
+		CURSOR_TRAIL_WIDTH_PX
 	} from '$lib/halftone/trail';
 	import {
 		ENTRANCE_CELL_END_PX,
@@ -321,7 +323,11 @@
 		const { lastPointer } = cursorMotion;
 		gl.uniform2f(uniform('u_pointer'), lastPointer.x * dpr, height - lastPointer.y * dpr);
 		gl.uniform1f(uniform('u_cursorRadius'), Math.max(cursorRadiusPx * motion * dpr, 0.001));
-		gl.uniform3fv(uniform('u_trail'), cursorMotion.trailUniforms(dpr, height));
+		const trail = cursorMotion.trailUniforms(dpr, height);
+		gl.uniform4fv(uniform('u_trail'), trail.points);
+		gl.uniform2fv(uniform('u_trailWave'), trail.waves);
+		gl.uniform1f(uniform('u_trailWidth'), Math.max(CURSOR_TRAIL_WIDTH_PX * dpr, 0.001));
+		gl.uniform1f(uniform('u_trailSpacing'), CURSOR_TRAIL_SPACING_PX * dpr);
 		gl.uniform1i(uniform('u_trailCount'), cursor ? cursorMotion.trail.length : 0);
 		const ripple = rippleUniforms(
 			ripples,
