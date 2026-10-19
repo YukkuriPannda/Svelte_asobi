@@ -11,13 +11,13 @@ import { CURSOR_TRAIL_SPACING_PX, CURSOR_TRAIL_SPREAD_PX } from "./trail";
 /** カーソルモードの効果範囲の半径（CSS px）。ポインターからこの距離で効果が 0 になる */
 export const CURSOR_RADIUS_PX = 2000;
 /** カーソルモードの縁（効果が弱い所）の格子の大きさ（CSS px） */
-export const CURSOR_MIN_CELL_PX = 1;
+export const CURSOR_MIN_CELL_PX = 10;
 /** カーソルモードの中心（ポインター直下）の格子の大きさ（CSS px） */
-export const CURSOR_MAX_CELL_PX = 50;
+export const CURSOR_MAX_CELL_PX = 30;
 /** カーソルモードの円の大きさ（格子に対する比率 0〜1） */
 export const CURSOR_DOT_SCALE = 0.8;
 /** カーソルモードのボケ（CSS px）。ドットの色を取る元画像のぼかし半径。格子の半分以下では効かない */
-export const CURSOR_BLUR_PX = 0;
+export const CURSOR_BLUR_PX = 10;
 /** カーソルモードのイージング曲線（CSS の cubic-bezier(x1, y1, x2, y2) と同じ4値）。縁 0 → 中心 1 の入力 x に対する効果の強さ */
 export const CURSOR_EASING: CubicBezier = EASING_PRESETS.easeInExpo;
 // 移動量 m（0〜1）: カーソルの速さ / CURSOR_FULL_SPEED_PX に追従する値。半径と中心の格子に掛ける。
@@ -130,7 +130,10 @@ export class CursorMotion {
 		};
 		// 速く動いたフレームでも点の間が開かないよう、間隔ごとに点を置く。通った時刻に合わせて古さを決める
 		const spots = last
-			? Math.min(Math.floor(length / CURSOR_TRAIL_SPACING_PX), CURSOR_TRAIL_POINTS)
+			? Math.min(
+				Math.floor(length / CURSOR_TRAIL_SPACING_PX),
+				CURSOR_TRAIL_POINTS,
+			)
 			: 1;
 		for (let k = 1; k <= spots; k++) {
 			const offset = last ? k * CURSOR_TRAIL_SPACING_PX : length;
