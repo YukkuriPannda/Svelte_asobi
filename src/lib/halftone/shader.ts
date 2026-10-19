@@ -27,7 +27,10 @@ uniform float u_entranceWidth; // 入場演出の前線の幅
 uniform float u_mode; // 0.0 はスクロール（下端からの前線）、1.0 はカーソル（ポインター周りの円）
 uniform vec2 u_pointer; // カーソル位置（gl_FragCoord と同じ左下原点の device px）
 uniform float u_cursorRadius; // カーソルモードの効果半径（device px）
-uniform vec3 u_trail[${CURSOR_TRAIL_POINTS}]; // 軌跡の点 x, y（u_pointer と同じ座標系）, 半径（device px）
+uniform vec4 u_trail[${CURSOR_TRAIL_POINTS}]; // 軌跡の点 x, y（u_pointer と同じ座標系）, 進行方向 x, y
+uniform vec2 u_trailWave[${CURSOR_TRAIL_POINTS}]; // 軌跡の波面までの距離（device px）, 強さ 0〜1
+uniform float u_trailWidth; // 軌跡の波の幅（device px）
+uniform float u_trailSpacing; // 軌跡の点の間隔（device px）
 uniform int u_trailCount;
 uniform vec4 u_ripples[${CURSOR_RIPPLE_POINTS}]; // 波紋の中心 x, y（u_pointer と同じ座標系）, 半径（device px）, 強さ 0〜1
 uniform int u_rippleCount;
@@ -134,14 +137,21 @@ void main() {
 		// u_pointer は gl_FragCoord と同じ座標系なので、p ではなく gl_FragCoord.xy と比べる
 		e = cursorEase(clamp(1.0 - length(gl_FragCoord.xy - u_pointer) / u_cursorRadius, 0.0, 1.0));
 		dots = u_cursorDots;
-		// 軌跡: 各点も本体と同じ式で求め、最も強い点を使う
+		// 軌跡: 各点から進行方向の左右 ±90° へ波面が広がる（波面は点から経過時間 × 速さの位置）。点の沿った長さは間隔の程度に限り、隣の点と続くようにする。最も強い点を使う
 		float tx = 0.0;
 		for (int t = 0; t < ${CURSOR_TRAIL_POINTS}; t++) {
 			if (t >= u_trailCount) break;
-			vec3 point = u_trail[t];
-			tx = max(tx, clamp(1.0 - length(gl_FragCoord.xy - point.xy) / point.z, 0.0, 1.0));
+			vec4 point = u_trail[t];
+			vec2 wave = u_trailWave[t];
+			vec2 q = gl_FragCoord.xy - point.xy;
+			float along = abs(dot(q, point.zw));
+			float side = abs(dot(q, vec2(-point.w, point.z)));
+			float band = smoothstep(0.0, 1.0, 1.0 - abs(side - wave.x) / (0.5 * u_trailWidth));
+			float reach = 1.0 - smoothstep(0.5 * u_trailSpacing, 1.5 * u_trailSpacing, along);
+			tx = max(tx, band * reach * wave.y);
 		}
-		float te = cursorEase(tx);
+		// 波は帯と残りの強さをそのまま効果の強さにする（カーソルのイージングは通さない。波紋と同じ）
+		float te = tx;
 		if (te > e) {
 			e = te;
 			dots = u_trailDots;
