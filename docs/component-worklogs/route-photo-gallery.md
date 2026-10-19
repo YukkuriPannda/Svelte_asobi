@@ -297,3 +297,4 @@ npm run visual -- --grep 'component:(gallery|tile-0|tile-1|tile-2|tile-3|tile-4|
 - タイトル文字サイズを64px→32pxに変更し再生成（`scripts/photo-og.html` の `--title-font-size` のみ変更。9件とも1200×630を確認）。
 - 背景に同じ写真をblur 40px・brightness 0.1で敷いた（`scripts/photo-og.html` の `#background`、`scripts/photo-og.mjs` で `#background` にもsrcを設定）。
 - `check:photo-og` を追加し `build` / `build:svelte` に組み込んだ。`scripts/photo-og.mjs` に `check` モードを追加（ブラウザを起動せず、`static/photo-og/` の欠落を検出）し、未使用の `writeFile` importを削除した。`scripts/photo-og.html` の `.card` から `padding: 0;` `gap: 0;` を削除し、コメントを `.card` の直上へ移した。
+- 写真を角丸24pxに（`scripts/photo-og.html` の `--photo-radius` と `#photo` の `border-radius`）。
